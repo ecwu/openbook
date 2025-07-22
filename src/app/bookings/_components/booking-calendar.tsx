@@ -285,23 +285,10 @@ export function BookingCalendar() {
 					</div>
 
 					{/* Legend */}
-					<div className="flex items-center gap-4 text-sm">
-						<div className="flex items-center gap-2">
-							<div className="h-3 w-3 rounded bg-yellow-500" />
-							<span>Pending</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="h-3 w-3 rounded bg-green-500" />
-							<span>Approved</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="h-3 w-3 rounded bg-blue-500" />
-							<span>Active</span>
-						</div>
-						<div className="flex items-center gap-2">
-							<div className="h-3 w-3 rounded bg-gray-500" />
-							<span>Other</span>
-						</div>
+					<div className="flex flex-wrap items-center gap-4 text-sm">
+						<span className="text-muted-foreground">
+							Each resource has a unique color to help distinguish bookings
+						</span>
 					</div>
 				</CardContent>
 			</Card>

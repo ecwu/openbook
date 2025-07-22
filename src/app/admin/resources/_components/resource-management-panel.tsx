@@ -99,8 +99,9 @@ export function ResourceManagementPanel() {
 
   const { data: resourceTypes = [] } = api.resources.getTypes.useQuery();
 
-  const { data: usagePredictions = [] } =
-    api.resources.get24HourUsagePrediction.useQuery({});
+  const { data: futureUsage = [] } = api.resources.getNext24HourUsage.useQuery(
+    {}
+  );
 
   const handleRefresh = () => {
     void refetch();
@@ -223,7 +224,6 @@ export function ResourceManagementPanel() {
         </Card>
       </div>
 
-
       {/* Resources Table */}
       <Card>
         <CardHeader>
@@ -302,32 +302,50 @@ export function ResourceManagementPanel() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="min-w-[200px]">
+                        <div className="w-[200px]">
                           {(() => {
-                            const resourceUsage = usagePredictions.find(p => p.resourceId === resource.id);
-                            
-                            // Generate hourly data - use prediction data if available, otherwise create empty data
-                            const hourlyData = resourceUsage?.hourlyData || Array.from({ length: 24 }, (_, hour) => {
-                              const hourStart = new Date(Date.now() + hour * 60 * 60 * 1000);
-                              return {
-                                hour: hourStart.toISOString(),
-                                hourLabel: hourStart.toLocaleTimeString('en-US', { 
-                                  hour: '2-digit', 
-                                  minute: '2-digit',
-                                  hour12: false 
-                                }),
-                                usage: hour === 0 ? resource.currentUtilization : 0, // Show current usage for first hour
-                                totalCapacity: resource.totalCapacity,
-                                utilizationPercent: hour === 0 ? Math.round(resource.utilizationPercentage) : 0,
-                              };
-                            });
-                            
+                            const resourceUsage = futureUsage.find(
+                              (u) => u.resourceId === resource.id
+                            );
+
+                            // Generate hourly data - use future usage data if available, otherwise create empty data
+                            const hourlyData =
+                              resourceUsage?.hourlyData ||
+                              Array.from({ length: 24 }, (_, hour) => {
+                                const hourStart = new Date(
+                                  Date.now() + hour * 60 * 60 * 1000
+                                );
+                                return {
+                                  hour: hourStart.toISOString(),
+                                  hourLabel: hourStart.toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                      hour12: false,
+                                    }
+                                  ),
+                                  usage:
+                                    hour === 0
+                                      ? resource.currentUtilization
+                                      : 0, // Show current usage for first hour
+                                  totalCapacity: resource.totalCapacity,
+                                  utilizationPercent:
+                                    hour === 0
+                                      ? Math.round(
+                                          resource.utilizationPercentage
+                                        )
+                                      : 0,
+                                };
+                              });
+
                             return (
-                              <ResourceUsageChart 
+                              <ResourceUsageChart
                                 data={hourlyData}
                                 totalCapacity={resource.totalCapacity}
                                 capacityUnit={resource.capacityUnit}
-                                className="h-[60px]"
+                                className="h-[100px]"
+                                hideAxes={true}
                               />
                             );
                           })()}
@@ -347,13 +365,17 @@ export function ResourceManagementPanel() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              onClick={() => setEditingResource(resource)}
+                              onClick={() =>
+                                setEditingResource(resource as Resource)
+                              }
                             >
                               <Pencil className="mr-2 h-4 w-4" />
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => setDeletingResource(resource)}
+                              onClick={() =>
+                                setDeletingResource(resource as Resource)
+                              }
                               className="text-destructive"
                             >
                               <Trash2 className="mr-2 h-4 w-4" />

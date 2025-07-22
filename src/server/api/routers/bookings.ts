@@ -8,6 +8,23 @@ import {
 	users,
 } from "@/server/db/schema";
 import { and, asc, between, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+
+function getResourceColor(resourceId: string, resourceName: string): string {
+	// Generate a consistent color based on resource ID/name
+	let hash = 0;
+	const str = `${resourceId}-${resourceName}`;
+	for (let i = 0; i < str.length; i++) {
+		hash = str.charCodeAt(i) + ((hash << 5) - hash);
+	}
+	
+	// Generate HSL color with good saturation and lightness for readability
+	const hue = Math.abs(hash) % 360;
+	const saturation = 65 + (Math.abs(hash) % 20); // 65-85%
+	const lightness = 45 + (Math.abs(hash) % 15); // 45-60%
+	
+	return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
 import { z } from "zod";
 
 const bookingCreateSchema = z.object({
@@ -669,14 +686,7 @@ export const bookingsRouter = createTRPCRouter({
 				title: `${booking.title} (${booking.requestedQuantity}${booking.resource.capacityUnit})`,
 				start: booking.startTime,
 				end: booking.endTime,
-				color:
-					booking.status === "pending"
-						? "#fbbf24"
-						: booking.status === "approved"
-							? "#10b981"
-							: booking.status === "active"
-								? "#3b82f6"
-								: "#6b7280",
+				color: getResourceColor(booking.resource.id, booking.resource.name),
 				extendedProps: {
 					description: booking.description,
 					status: booking.status,
