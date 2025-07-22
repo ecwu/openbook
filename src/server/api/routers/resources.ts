@@ -6,7 +6,7 @@ import {
 	userGroups,
 	users,
 } from "@/server/db/schema";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, lt, lte, or } from "drizzle-orm";
 import { z } from "zod";
 
 const resourceCreateSchema = z.object({
@@ -169,12 +169,20 @@ export const resourcesRouter = createTRPCRouter({
 
 			return resourcesList.map((resource) => {
 				// Calculate current utilization
+				const now = new Date();
 				const currentUtilization = resource.bookings.reduce(
 					(total, booking) => {
-						return (
-							total +
-							(booking.allocatedQuantity || booking.requestedQuantity || 0)
-						);
+						// Only count bookings that are currently active or approved and running now
+						const isCurrentlyRunning = 
+							booking.status === "active" ||
+							(booking.status === "approved" && 
+							 booking.startTime <= now && 
+							 booking.endTime > now);
+							 
+						if (isCurrentlyRunning) {
+							return total + (booking.allocatedQuantity || booking.requestedQuantity || 0);
+						}
+						return total;
 					},
 					0,
 				);
@@ -690,5 +698,117 @@ export const resourcesRouter = createTRPCRouter({
 					status: b.status,
 				})),
 			};
+		}),
+
+	// Get 24-hour usage prediction for resources
+	get24HourUsagePrediction: protectedProcedure
+		.input(
+			z.object({
+				resourceId: z.string().optional(),
+			})
+		)
+		.query(async ({ ctx, input }) => {
+			const now = new Date();
+			const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+			// First, get all active resources
+			const resourceFilter = input.resourceId 
+				? and(eq(resources.id, input.resourceId), eq(resources.isActive, true))
+				: eq(resources.isActive, true);
+
+			const resourcesList = await ctx.db
+				.select()
+				.from(resources)
+				.where(resourceFilter)
+				.orderBy(asc(resources.name));
+
+			if (resourcesList.length === 0) {
+				return [];
+			}
+
+			// Get all relevant bookings for these resources
+			const resourceIds = resourcesList.map(r => r.id);
+			const relevantBookings = await ctx.db
+				.select()
+				.from(bookings)
+				.where(
+					and(
+						inArray(bookings.resourceId, resourceIds),
+						or(
+							eq(bookings.status, "approved"),
+							eq(bookings.status, "active"),
+						),
+						// Only get bookings that overlap with next 24 hours
+						bookings.startTime < next24Hours,
+						bookings.endTime > now
+					)
+				);
+
+			// Group bookings by resource
+			const resourceBookingsMap = new Map();
+			
+			// Initialize all resources with empty booking arrays
+			for (const resource of resourcesList) {
+				resourceBookingsMap.set(resource.id, {
+					resource,
+					bookings: []
+				});
+			}
+			
+			// Add bookings to their respective resources
+			for (const booking of relevantBookings) {
+				const resourceData = resourceBookingsMap.get(booking.resourceId);
+				if (resourceData) {
+					resourceData.bookings.push(booking);
+				}
+			}
+
+			// Generate hourly usage data for each resource
+			const predictions = Array.from(resourceBookingsMap.values()).map(({ resource, bookings }) => {
+				const hourlyData = [];
+				
+				// Generate data points for each hour in the next 24 hours
+				for (let hour = 0; hour < 24; hour++) {
+					const hourStart = new Date(now.getTime() + hour * 60 * 60 * 1000);
+					const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000);
+					
+					// Calculate usage for this hour
+					const usage = bookings.reduce((total, booking) => {
+						// Check if booking overlaps with this hour
+						if (booking.startTime < hourEnd && booking.endTime > hourStart) {
+							return total + (booking.allocatedQuantity || booking.requestedQuantity || 0);
+						}
+						return total;
+					}, 0);
+
+					const utilizationPercent = resource.totalCapacity > 0 
+						? Math.round((usage / resource.totalCapacity) * 100) 
+						: 0;
+
+					hourlyData.push({
+						hour: hourStart.toISOString(),
+						hourLabel: hourStart.toLocaleTimeString('en-US', { 
+							hour: '2-digit', 
+							minute: '2-digit',
+							hour12: false 
+						}),
+						usage,
+						totalCapacity: resource.totalCapacity,
+						utilizationPercent,
+						availableCapacity: resource.totalCapacity - usage,
+					});
+				}
+
+				return {
+					resourceId: resource.id,
+					resourceName: resource.name,
+					resourceType: resource.type,
+					totalCapacity: resource.totalCapacity,
+					capacityUnit: resource.capacityUnit,
+					hourlyData,
+				};
+			});
+
+			return predictions;
 		}),
 });

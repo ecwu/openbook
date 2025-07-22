@@ -177,7 +177,7 @@ export function CreateBookingDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[600px]">
+			<DialogContent className="max-w-2xl mx-auto">
 				<DialogHeader>
 					<DialogTitle>Create New Booking</DialogTitle>
 					<DialogDescription>
@@ -186,77 +186,50 @@ export function CreateBookingDialog({
 				</DialogHeader>
 
 				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						<FormField
-							control={form.control}
-							name="resourceId"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Resource</FormLabel>
-									<Select onValueChange={field.onChange} value={field.value}>
-										<FormControl>
-											<SelectTrigger>
-												<SelectValue placeholder="Select a resource" />
-											</SelectTrigger>
-										</FormControl>
-										<SelectContent>
-											{resources.map((resource) => (
-												<SelectItem key={resource.id} value={resource.id}>
-													{resource.name} ({resource.type}) -{" "}
-													{resource.totalCapacity} {resource.capacityUnit}
-													{resource.status !== "available" &&
-														` - ${resource.status}`}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="title"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Title</FormLabel>
-									<FormControl>
-										<Input placeholder="e.g., ML Training Job" {...field} />
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<FormField
-							control={form.control}
-							name="description"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Description</FormLabel>
-									<FormControl>
-										<Textarea
-											placeholder="Brief description of the booking purpose"
-											className="resize-none"
-											rows={3}
-											{...field}
-										/>
-									</FormControl>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
-
-						<div className="grid grid-cols-2 gap-4">
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-xl mx-auto">
+						{/* Resource Selection */}
+						<div className="space-y-4">
+							<h3 className="text-sm font-medium text-muted-foreground">Resource</h3>
 							<FormField
 								control={form.control}
-								name="startTime"
+								name="resourceId"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Start Time</FormLabel>
+										<FormLabel>Select Resource</FormLabel>
+										<Select onValueChange={field.onChange} value={field.value}>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Choose a resource to book" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												{resources.map((resource) => (
+													<SelectItem key={resource.id} value={resource.id}>
+														{resource.name} ({resource.type}) -{" "}
+														{resource.totalCapacity} {resource.capacityUnit}
+														{resource.status !== "available" &&
+															` - ${resource.status}`}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						{/* Basic Information */}
+						<div className="space-y-4">
+							<h3 className="text-sm font-medium text-muted-foreground">Booking Details</h3>
+							<FormField
+								control={form.control}
+								name="title"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel>Title</FormLabel>
 										<FormControl>
-											<Input type="datetime-local" {...field} />
+											<Input placeholder="e.g., ML Training Job" {...field} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -265,12 +238,17 @@ export function CreateBookingDialog({
 
 							<FormField
 								control={form.control}
-								name="endTime"
+								name="description"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>End Time</FormLabel>
+										<FormLabel>Description (Optional)</FormLabel>
 										<FormControl>
-											<Input type="datetime-local" {...field} />
+											<Textarea
+												placeholder="Brief description of the booking purpose"
+												className="resize-none"
+												rows={2}
+												{...field}
+											/>
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -278,105 +256,147 @@ export function CreateBookingDialog({
 							/>
 						</div>
 
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="requestedQuantity"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Quantity</FormLabel>
-										<FormControl>
-											<Input
-												type="number"
-												min="1"
-												max={selectedResource?.totalCapacity || undefined}
-												disabled={
-													selectedResource?.isIndivisible || 
-													(watchBookingType === "exclusive" && !selectedResource?.isIndivisible)
-												}
-												{...field}
-												onChange={(e) =>
-													field.onChange(Number.parseInt(e.target.value) || 1)
-												}
-											/>
-										</FormControl>
-										<FormDescription>
-											{selectedResource && (
-												<>
-													{selectedResource.capacityUnit}
-													{selectedResource.isIndivisible &&
-														" (Full resource required)"}
-													{watchBookingType === "exclusive" && !selectedResource.isIndivisible &&
-														" (Full capacity required for exclusive booking)"}
-													{selectedResource.minAllocation &&
-														` (Min: ${selectedResource.minAllocation})`}
-													{selectedResource.maxAllocation &&
-														` (Max: ${selectedResource.maxAllocation})`}
-												</>
-											)}
-										</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
+						{/* Time Selection */}
+						<div className="space-y-4">
+							<h3 className="text-sm font-medium text-muted-foreground">Schedule</h3>
+							<div className="grid grid-cols-2 gap-4">
+								<FormField
+									control={form.control}
+									name="startTime"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Start Time</FormLabel>
+											<FormControl>
+												<Input type="datetime-local" {...field} />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
 
+								<FormField
+									control={form.control}
+									name="endTime"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>End Time</FormLabel>
+											<FormControl>
+												<Input type="datetime-local" {...field} />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						</div>
+
+						{/* Booking Configuration */}
+						<div className="space-y-4">
+							<h3 className="text-sm font-medium text-muted-foreground">Configuration</h3>
+							<div className="grid grid-cols-2 gap-4">
+								<FormField
+									control={form.control}
+									name="bookingType"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Booking Type</FormLabel>
+											<Select
+												onValueChange={field.onChange}
+												value={field.value}
+												disabled={selectedResource?.isIndivisible}
+											>
+												<FormControl>
+													<SelectTrigger>
+														<SelectValue />
+													</SelectTrigger>
+												</FormControl>
+												<SelectContent>
+													<SelectItem value="shared">Shared</SelectItem>
+													<SelectItem value="exclusive">Exclusive</SelectItem>
+												</SelectContent>
+											</Select>
+											<FormDescription>
+												{watchBookingType === "exclusive"
+													? "No other bookings allowed during this time"
+													: "Other bookings may share this resource"}
+												{selectedResource?.isIndivisible &&
+													" (Required for this resource)"}
+											</FormDescription>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								<FormField
+									control={form.control}
+									name="requestedQuantity"
+									render={({ field }) => (
+										<FormItem className={watchBookingType === "exclusive" ? "opacity-60" : ""}>
+											<FormLabel>Quantity</FormLabel>
+											<FormControl>
+												<Input
+													type="number"
+													min="1"
+													max={selectedResource?.totalCapacity || undefined}
+													disabled={
+														selectedResource?.isIndivisible || 
+														(watchBookingType === "exclusive" && !selectedResource?.isIndivisible)
+													}
+													{...field}
+													onChange={(e) =>
+														field.onChange(Number.parseInt(e.target.value) || 1)
+													}
+												/>
+											</FormControl>
+											<FormDescription>
+												{selectedResource && (
+													<>
+														{selectedResource.capacityUnit}
+														{selectedResource.isIndivisible &&
+															" (Full resource required)"}
+														{watchBookingType === "exclusive" && !selectedResource.isIndivisible &&
+															" (Full capacity required for exclusive booking)"}
+														{selectedResource.minAllocation &&
+															` (Min: ${selectedResource.minAllocation})`}
+														{selectedResource.maxAllocation &&
+															` (Max: ${selectedResource.maxAllocation})`}
+													</>
+												)}
+											</FormDescription>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						</div>
+
+						{/* Priority */}
+						<div className="space-y-4">
+							<h3 className="text-sm font-medium text-muted-foreground">Priority</h3>
 							<FormField
 								control={form.control}
-								name="bookingType"
+								name="priority"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Booking Type</FormLabel>
-										<Select
-											onValueChange={field.onChange}
-											value={field.value}
-											disabled={selectedResource?.isIndivisible}
-										>
+										<FormLabel>Priority Level</FormLabel>
+										<Select onValueChange={field.onChange} value={field.value}>
 											<FormControl>
 												<SelectTrigger>
 													<SelectValue />
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												<SelectItem value="shared">Shared</SelectItem>
-												<SelectItem value="exclusive">Exclusive</SelectItem>
+												<SelectItem value="low">Low</SelectItem>
+												<SelectItem value="normal">Normal</SelectItem>
+												<SelectItem value="high">High</SelectItem>
+												<SelectItem value="critical">Critical</SelectItem>
 											</SelectContent>
 										</Select>
-										<FormDescription>
-											{watchBookingType === "exclusive"
-												? "No other bookings allowed during this time"
-												: "Other bookings may share this resource"}
-											{selectedResource?.isIndivisible &&
-												" (Required for this resource)"}
-										</FormDescription>
 										<FormMessage />
 									</FormItem>
 								)}
 							/>
 						</div>
-
-						<FormField
-							control={form.control}
-							name="priority"
-							render={({ field }) => (
-								<FormItem>
-									<FormLabel>Priority</FormLabel>
-									<Select onValueChange={field.onChange} value={field.value}>
-										<FormControl>
-											<SelectTrigger>
-												<SelectValue />
-											</SelectTrigger>
-										</FormControl>
-										<SelectContent>
-											<SelectItem value="low">Low</SelectItem>
-											<SelectItem value="normal">Normal</SelectItem>
-											<SelectItem value="high">High</SelectItem>
-											<SelectItem value="critical">Critical</SelectItem>
-										</SelectContent>
-									</Select>
-									<FormMessage />
-								</FormItem>
-							)}
-						/>
 
 						<DialogFooter>
 							<Button
