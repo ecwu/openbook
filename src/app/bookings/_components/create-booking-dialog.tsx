@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, differenceInMinutes, differenceInHours } from "date-fns";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -66,6 +66,7 @@ export function CreateBookingDialog({
 	onSuccess,
 }: CreateBookingDialogProps) {
 	const [selectedResource, setSelectedResource] = useState<any>(null);
+	const [availableCapacity, setAvailableCapacity] = useState<number | null>(null);
 
 	const form = useForm<CreateBookingForm>({
 		resolver: zodResolver(createBookingSchema),
@@ -81,12 +82,40 @@ export function CreateBookingDialog({
 		},
 	});
 
+	// Watch form values for reactive updates
+	const watchResourceId = form.watch("resourceId");
+	const watchBookingType = form.watch("bookingType");
+	const watchStartTime = form.watch("startTime");
+	const watchEndTime = form.watch("endTime");
+
 	// Fetch resources
 	const { data: resources = [] } = api.resources.list.useQuery({
 		limit: 100,
 		sortBy: "name",
 		sortOrder: "asc",
 	});
+
+	// Check available capacity for selected time range and resource
+	const { data: capacityData } = api.bookings.checkAvailableCapacity.useQuery(
+		{
+			resourceId: watchResourceId,
+			startTime: watchStartTime ? new Date(watchStartTime) : new Date(),
+			endTime: watchEndTime ? new Date(watchEndTime) : new Date(),
+		},
+		{
+			enabled: !!(watchResourceId && watchStartTime && watchEndTime),
+			retryOnMount: false,
+		}
+	);
+
+	// Update available capacity when capacity data changes
+	useEffect(() => {
+		if (capacityData) {
+			setAvailableCapacity(capacityData.availableCapacity);
+		} else {
+			setAvailableCapacity(null);
+		}
+	}, [capacityData]);
 
 	const createBooking = api.bookings.create.useMutation({
 		onSuccess: () => {
@@ -129,9 +158,27 @@ export function CreateBookingDialog({
 		}
 	}, [open, defaultDate, defaultEndDate, defaultResourceId, form]);
 
-	// Update selected resource when resource changes
-	const watchResourceId = form.watch("resourceId");
-	const watchBookingType = form.watch("bookingType");
+	// Calculate selection duration
+	const getSelectionDuration = () => {
+		if (!watchStartTime || !watchEndTime) return null;
+		const start = new Date(watchStartTime);
+		const end = new Date(watchEndTime);
+		if (end <= start) return null;
+
+		const minutes = differenceInMinutes(end, start);
+		if (minutes < 60) {
+			return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+		}
+
+		const hours = differenceInHours(end, start);
+		const remainingMinutes = minutes % 60;
+		if (remainingMinutes === 0) {
+			return `${hours} hour${hours !== 1 ? 's' : ''}`;
+		}
+		return `${hours}h ${remainingMinutes}m`;
+	};
+
+	const selectionDuration = getSelectionDuration();
 
 	useEffect(() => {
 		const resource = resources.find((r) => r.id === watchResourceId);
@@ -254,6 +301,27 @@ export function CreateBookingDialog({
 									</FormItem>
 								)}
 							/>
+
+							{/* Available Capacity Display */}
+							{selectedResource && selectionDuration && (
+								<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">
+									<div className="mb-1 font-medium text-blue-900">
+										Resource Availability
+									</div>
+									<div className="text-blue-800">
+										<strong>{selectedResource.name}</strong> for {selectionDuration}
+									</div>
+									{availableCapacity !== null ? (
+										<div className="mt-1 text-blue-700">
+											Available: <strong>{availableCapacity}</strong> of {selectedResource.totalCapacity} {selectedResource.capacityUnit}
+										</div>
+									) : (
+										<div className="mt-1 text-xs text-blue-600">
+											Checking availability...
+										</div>
+									)}
+								</div>
+							)}
 						</div>
 
 						{/* Basic Information */}
@@ -329,6 +397,14 @@ export function CreateBookingDialog({
 									)}
 								/>
 							</div>
+
+							{/* Duration Display */}
+							{selectionDuration && (
+								<div className="rounded-md bg-muted p-3 text-sm">
+									<div className="font-medium text-muted-foreground">Duration</div>
+									<div className="text-foreground">{selectionDuration}</div>
+								</div>
+							)}
 						</div>
 
 						{/* Booking Configuration */}
@@ -384,7 +460,7 @@ export function CreateBookingDialog({
 												<Input
 													type="number"
 													min="1"
-													max={selectedResource?.totalCapacity || undefined}
+													max={availableCapacity !== null ? Math.min(availableCapacity, selectedResource?.totalCapacity || Infinity) : selectedResource?.totalCapacity || undefined}
 													disabled={
 														selectedResource?.isIndivisible ||
 														(watchBookingType === "exclusive" &&

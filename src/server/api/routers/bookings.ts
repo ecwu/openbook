@@ -7,7 +7,7 @@ import {
 	userGroups,
 	users,
 } from "@/server/db/schema";
-import { and, asc, between, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import { and, asc, between, desc, eq, gte, lte, not, or, sql } from "drizzle-orm";
 
 function getResourceColor(resourceId: string, resourceName: string): string {
 	// Generate a consistent color based on resource ID/name
@@ -764,5 +764,59 @@ export const bookingsRouter = createTRPCRouter({
 			};
 
 			return stats;
+		}),
+
+	// Check available capacity for a resource during a specific time period
+	checkAvailableCapacity: protectedProcedure
+		.input(
+			z.object({
+				resourceId: z.string(),
+				startTime: z.date(),
+				endTime: z.date(),
+			}),
+		)
+		.query(async ({ ctx, input }) => {
+			// Get the resource
+			const resource = await ctx.db.query.resources.findFirst({
+				where: eq(resources.id, input.resourceId),
+			});
+
+			if (!resource) {
+				throw new Error("Resource not found");
+			}
+
+			// Get overlapping bookings to check capacity
+			const overlappingBookings = await ctx.db.query.bookings.findMany({
+				where: and(
+					eq(bookings.resourceId, input.resourceId),
+					or(
+						eq(bookings.status, "approved"),
+						eq(bookings.status, "active"),
+						eq(bookings.status, "pending"),
+					),
+					// Check for actual time overlap (bookings are only conflicting if they truly overlap)
+					and(
+						lte(bookings.startTime, input.endTime),
+						gte(bookings.endTime, input.startTime),
+						// Exclude exact adjacency: booking ends exactly when new one starts, or vice versa
+						not(eq(bookings.endTime, input.startTime)),
+						not(eq(bookings.startTime, input.endTime)),
+					),
+				),
+			});
+
+			// Calculate current allocation during this time period
+			const currentAllocation = overlappingBookings.reduce((total, booking) => {
+				return total + (booking.allocatedQuantity || booking.requestedQuantity || 0);
+			}, 0);
+
+			const availableCapacity = resource.totalCapacity - currentAllocation;
+
+			return {
+				availableCapacity: Math.max(0, availableCapacity),
+				totalCapacity: resource.totalCapacity,
+				currentAllocation,
+				conflictingBookings: overlappingBookings.length,
+			};
 		}),
 });
