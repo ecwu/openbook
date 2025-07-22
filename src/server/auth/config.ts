@@ -1,16 +1,16 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { and, eq } from "drizzle-orm";
 import type { DefaultSession, NextAuthConfig } from "next-auth";
 import AuthentikProvider from "next-auth/providers/authentik";
-import { eq, and } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import {
 	accounts,
+	groups,
 	sessions,
+	userGroups,
 	users,
 	verificationTokens,
-	groups,
-	userGroups,
 } from "@/server/db/schema";
 
 /**
@@ -62,6 +62,63 @@ export const authConfig = {
 		verificationTokensTable: verificationTokens,
 	}),
 	callbacks: {
+		async signIn({ user, account, profile }) {
+			if (account?.provider === "authentik" && profile) {
+				try {
+					// Extract groups from Authentik profile
+					// Authentik typically provides groups in the profile.groups field or claims
+					const authentikGroups = (profile.groups as string[]) || [];
+
+					if (authentikGroups.length > 0) {
+						// Process each group
+						for (const groupName of authentikGroups) {
+							if (!groupName || typeof groupName !== "string") continue;
+
+							// Check if group exists, create if not
+							let existingGroup = await db.query.groups.findFirst({
+								where: eq(groups.name, groupName),
+							});
+
+							if (!existingGroup) {
+								// Create new group
+								const [newGroup] = await db
+									.insert(groups)
+									.values({
+										name: groupName,
+										description: "Auto-created from Authentik SSO",
+										isActive: true,
+									})
+									.returning();
+								existingGroup = newGroup;
+							}
+
+							// Check if user is already in this group
+							if (existingGroup) {
+								const existingMembership = await db.query.userGroups.findFirst({
+									where: and(
+										eq(userGroups.userId, user.id as string),
+										eq(userGroups.groupId, existingGroup.id),
+									),
+								});
+
+								// Add user to group if not already a member
+								if (!existingMembership) {
+									await db.insert(userGroups).values({
+										userId: user.id as string,
+										groupId: existingGroup.id,
+										role: "member", // default role
+									});
+								}
+							}
+						}
+					}
+				} catch (error) {
+					console.error("Error processing Authentik groups:", error);
+					// Don't fail the sign-in if group processing fails
+				}
+			}
+			return true;
+		},
 		session: ({ session, user }) => ({
 			...session,
 			user: {
