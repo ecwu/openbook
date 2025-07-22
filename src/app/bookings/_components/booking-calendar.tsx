@@ -161,7 +161,7 @@ export function BookingCalendar() {
 
 		// Round start time to nearest hour
 		startDate.setMinutes(0, 0, 0);
-		
+
 		// Round end time to nearest hour
 		endDate.setMinutes(0, 0, 0);
 

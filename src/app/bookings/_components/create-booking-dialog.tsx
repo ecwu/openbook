@@ -107,9 +107,11 @@ export function CreateBookingDialog({
 			const now = defaultDate || new Date();
 			const startTime = new Date(now);
 			startTime.setMinutes(0, 0, 0);
-			
+
 			// Use defaultEndDate if provided, otherwise add 1 hour to start time
-			const endTime = defaultEndDate ? new Date(defaultEndDate) : new Date(startTime);
+			const endTime = defaultEndDate
+				? new Date(defaultEndDate)
+				: new Date(startTime);
 			if (!defaultEndDate) {
 				endTime.setHours(endTime.getHours() + 1);
 			}
@@ -131,7 +133,7 @@ export function CreateBookingDialog({
 	// Update selected resource when resource changes
 	const watchResourceId = form.watch("resourceId");
 	const watchBookingType = form.watch("bookingType");
-	
+
 	useEffect(() => {
 		const resource = resources.find((r) => r.id === watchResourceId);
 		setSelectedResource(resource);
@@ -150,10 +152,14 @@ export function CreateBookingDialog({
 			}
 		}
 	}, [watchResourceId, resources, form]);
-	
+
 	// Update quantity when booking type changes to exclusive
 	useEffect(() => {
-		if (selectedResource && watchBookingType === "exclusive" && !selectedResource.isIndivisible) {
+		if (
+			selectedResource &&
+			watchBookingType === "exclusive" &&
+			!selectedResource.isIndivisible
+		) {
 			// For exclusive bookings on non-indivisible resources, set full capacity
 			form.setValue("requestedQuantity", selectedResource.totalCapacity);
 		}
@@ -177,7 +183,7 @@ export function CreateBookingDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-2xl mx-auto">
+			<DialogContent className="mx-auto max-w-2xl">
 				<DialogHeader>
 					<DialogTitle>Create New Booking</DialogTitle>
 					<DialogDescription>
@@ -186,10 +192,15 @@ export function CreateBookingDialog({
 				</DialogHeader>
 
 				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-xl mx-auto">
+					<form
+						onSubmit={form.handleSubmit(onSubmit)}
+						className="mx-auto max-w-xl space-y-6"
+					>
 						{/* Resource Selection */}
 						<div className="space-y-4">
-							<h3 className="text-sm font-medium text-muted-foreground">Resource</h3>
+							<h3 className="font-medium text-muted-foreground text-sm">
+								Resource
+							</h3>
 							<FormField
 								control={form.control}
 								name="resourceId"
@@ -221,7 +232,9 @@ export function CreateBookingDialog({
 
 						{/* Basic Information */}
 						<div className="space-y-4">
-							<h3 className="text-sm font-medium text-muted-foreground">Booking Details</h3>
+							<h3 className="font-medium text-muted-foreground text-sm">
+								Booking Details
+							</h3>
 							<FormField
 								control={form.control}
 								name="title"
@@ -258,7 +271,9 @@ export function CreateBookingDialog({
 
 						{/* Time Selection */}
 						<div className="space-y-4">
-							<h3 className="text-sm font-medium text-muted-foreground">Schedule</h3>
+							<h3 className="font-medium text-muted-foreground text-sm">
+								Schedule
+							</h3>
 							<div className="grid grid-cols-2 gap-4">
 								<FormField
 									control={form.control}
@@ -292,7 +307,9 @@ export function CreateBookingDialog({
 
 						{/* Booking Configuration */}
 						<div className="space-y-4">
-							<h3 className="text-sm font-medium text-muted-foreground">Configuration</h3>
+							<h3 className="font-medium text-muted-foreground text-sm">
+								Configuration
+							</h3>
 							<div className="grid grid-cols-2 gap-4">
 								<FormField
 									control={form.control}
@@ -331,7 +348,11 @@ export function CreateBookingDialog({
 									control={form.control}
 									name="requestedQuantity"
 									render={({ field }) => (
-										<FormItem className={watchBookingType === "exclusive" ? "opacity-60" : ""}>
+										<FormItem
+											className={
+												watchBookingType === "exclusive" ? "opacity-60" : ""
+											}
+										>
 											<FormLabel>Quantity</FormLabel>
 											<FormControl>
 												<Input
@@ -339,8 +360,9 @@ export function CreateBookingDialog({
 													min="1"
 													max={selectedResource?.totalCapacity || undefined}
 													disabled={
-														selectedResource?.isIndivisible || 
-														(watchBookingType === "exclusive" && !selectedResource?.isIndivisible)
+														selectedResource?.isIndivisible ||
+														(watchBookingType === "exclusive" &&
+															!selectedResource?.isIndivisible)
 													}
 													{...field}
 													onChange={(e) =>
@@ -354,7 +376,8 @@ export function CreateBookingDialog({
 														{selectedResource.capacityUnit}
 														{selectedResource.isIndivisible &&
 															" (Full resource required)"}
-														{watchBookingType === "exclusive" && !selectedResource.isIndivisible &&
+														{watchBookingType === "exclusive" &&
+															!selectedResource.isIndivisible &&
 															" (Full capacity required for exclusive booking)"}
 														{selectedResource.minAllocation &&
 															` (Min: ${selectedResource.minAllocation})`}
@@ -372,7 +395,9 @@ export function CreateBookingDialog({
 
 						{/* Priority */}
 						<div className="space-y-4">
-							<h3 className="text-sm font-medium text-muted-foreground">Priority</h3>
+							<h3 className="font-medium text-muted-foreground text-sm">
+								Priority
+							</h3>
 							<FormField
 								control={form.control}
 								name="priority"

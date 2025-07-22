@@ -6,7 +6,20 @@ import {
 	userGroups,
 	users,
 } from "@/server/db/schema";
-import { and, asc, desc, eq, gt, gte, ilike, inArray, lt, lte, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gt,
+	gte,
+	ilike,
+	inArray,
+	lt,
+	lte,
+	or,
+	sql,
+} from "drizzle-orm";
 import { z } from "zod";
 
 const resourceCreateSchema = z.object({
@@ -173,14 +186,17 @@ export const resourcesRouter = createTRPCRouter({
 				const currentUtilization = resource.bookings.reduce(
 					(total, booking) => {
 						// Only count bookings that are currently active or approved and running now
-						const isCurrentlyRunning = 
+						const isCurrentlyRunning =
 							booking.status === "active" ||
-							(booking.status === "approved" && 
-							 booking.startTime <= now && 
-							 booking.endTime > now);
-							 
+							(booking.status === "approved" &&
+								booking.startTime <= now &&
+								booking.endTime > now);
+
 						if (isCurrentlyRunning) {
-							return total + (booking.allocatedQuantity || booking.requestedQuantity || 0);
+							return (
+								total +
+								(booking.allocatedQuantity || booking.requestedQuantity || 0)
+							);
 						}
 						return total;
 					},
@@ -705,14 +721,14 @@ export const resourcesRouter = createTRPCRouter({
 		.input(
 			z.object({
 				resourceId: z.string().optional(),
-			})
+			}),
 		)
 		.query(async ({ ctx, input }) => {
 			const now = new Date();
 			const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
 			// First, get all active resources
-			const resourceFilter = input.resourceId 
+			const resourceFilter = input.resourceId
 				? and(eq(resources.id, input.resourceId), eq(resources.isActive, true))
 				: eq(resources.isActive, true);
 
@@ -727,34 +743,31 @@ export const resourcesRouter = createTRPCRouter({
 			}
 
 			// Get all relevant bookings for these resources that overlap with next 24 hours
-			const resourceIds = resourcesList.map(r => r.id);
+			const resourceIds = resourcesList.map((r) => r.id);
 			const relevantBookings = await ctx.db
 				.select()
 				.from(bookings)
 				.where(
 					and(
 						inArray(bookings.resourceId, resourceIds),
-						or(
-							eq(bookings.status, "approved"),
-							eq(bookings.status, "active"),
-						),
+						or(eq(bookings.status, "approved"), eq(bookings.status, "active")),
 						// Booking overlaps with next 24 hours: starts before end of period AND ends after start of period
 						lt(bookings.startTime, next24Hours),
-						gt(bookings.endTime, now)
-					)
+						gt(bookings.endTime, now),
+					),
 				);
 
 			// Group bookings by resource
 			const resourceBookingsMap = new Map();
-			
+
 			// Initialize all resources with empty booking arrays
 			for (const resource of resourcesList) {
 				resourceBookingsMap.set(resource.id, {
 					resource,
-					bookings: []
+					bookings: [],
 				});
 			}
-			
+
 			// Add bookings to their respective resources
 			for (const booking of relevantBookings) {
 				const resourceData = resourceBookingsMap.get(booking.resourceId);
@@ -764,76 +777,80 @@ export const resourcesRouter = createTRPCRouter({
 			}
 
 			// Generate hourly usage data for each resource
-			const futureUsage = Array.from(resourceBookingsMap.values()).map(({ resource, bookings }) => {
-				const hourlyData = [];
-				
-				// Generate data points for each hour in the next 24 hours
-				for (let hour = 0; hour < 24; hour++) {
-					const hourStart = new Date(now.getTime() + hour * 60 * 60 * 1000);
-					const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000);
-					
-					// Calculate actual usage for this hour based on overlapping bookings
-					let usage = 0;
-					const activeBookingsInHour = [];
+			const futureUsage = Array.from(resourceBookingsMap.values()).map(
+				({ resource, bookings }) => {
+					const hourlyData = [];
 
-					for (const booking of bookings) {
-						// Check if booking overlaps with this hour
-						// Booking overlaps if: booking.startTime < hourEnd AND booking.endTime > hourStart
-						if (booking.startTime < hourEnd && booking.endTime > hourStart) {
-							const allocatedQuantity = booking.allocatedQuantity || booking.requestedQuantity || 0;
-							usage += allocatedQuantity;
-							activeBookingsInHour.push({
-								id: booking.id,
-								title: booking.title,
-								startTime: booking.startTime,
-								endTime: booking.endTime,
-								quantity: allocatedQuantity,
-								status: booking.status
-							});
+					// Generate data points for each hour in the next 24 hours
+					for (let hour = 0; hour < 24; hour++) {
+						const hourStart = new Date(now.getTime() + hour * 60 * 60 * 1000);
+						const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000);
+
+						// Calculate actual usage for this hour based on overlapping bookings
+						let usage = 0;
+						const activeBookingsInHour = [];
+
+						for (const booking of bookings) {
+							// Check if booking overlaps with this hour
+							// Booking overlaps if: booking.startTime < hourEnd AND booking.endTime > hourStart
+							if (booking.startTime < hourEnd && booking.endTime > hourStart) {
+								const allocatedQuantity =
+									booking.allocatedQuantity || booking.requestedQuantity || 0;
+								usage += allocatedQuantity;
+								activeBookingsInHour.push({
+									id: booking.id,
+									title: booking.title,
+									startTime: booking.startTime,
+									endTime: booking.endTime,
+									quantity: allocatedQuantity,
+									status: booking.status,
+								});
+							}
 						}
+
+						const utilizationPercent =
+							resource.totalCapacity > 0
+								? Math.round((usage / resource.totalCapacity) * 100)
+								: 0;
+
+						// Format hour label showing day if not today
+						const isToday = hourStart.toDateString() === now.toDateString();
+						const hourLabel = isToday
+							? hourStart.toLocaleTimeString("en-US", {
+									hour: "2-digit",
+									minute: "2-digit",
+									hour12: false,
+								})
+							: hourStart.toLocaleDateString("en-US", {
+									month: "short",
+									day: "numeric",
+									hour: "2-digit",
+									minute: "2-digit",
+									hour12: false,
+								});
+
+						hourlyData.push({
+							hour: hourStart.toISOString(),
+							hourLabel,
+							usage,
+							totalCapacity: resource.totalCapacity,
+							utilizationPercent,
+							availableCapacity: resource.totalCapacity - usage,
+							activeBookings: activeBookingsInHour,
+						});
 					}
 
-					const utilizationPercent = resource.totalCapacity > 0 
-						? Math.round((usage / resource.totalCapacity) * 100) 
-						: 0;
-
-					// Format hour label showing day if not today
-					const isToday = hourStart.toDateString() === now.toDateString();
-					const hourLabel = isToday 
-						? hourStart.toLocaleTimeString('en-US', { 
-							hour: '2-digit', 
-							minute: '2-digit',
-							hour12: false 
-						})
-						: hourStart.toLocaleDateString('en-US', { 
-							month: 'short',
-							day: 'numeric',
-							hour: '2-digit',
-							minute: '2-digit',
-							hour12: false
-						});
-
-					hourlyData.push({
-						hour: hourStart.toISOString(),
-						hourLabel,
-						usage,
+					return {
+						resourceId: resource.id,
+						resourceName: resource.name,
+						resourceType: resource.type,
 						totalCapacity: resource.totalCapacity,
-						utilizationPercent,
-						availableCapacity: resource.totalCapacity - usage,
-						activeBookings: activeBookingsInHour,
-					});
-				}
-
-				return {
-					resourceId: resource.id,
-					resourceName: resource.name,
-					resourceType: resource.type,
-					totalCapacity: resource.totalCapacity,
-					capacityUnit: resource.capacityUnit,
-					hourlyData,
-					totalBookings: bookings.length,
-				};
-			});
+						capacityUnit: resource.capacityUnit,
+						hourlyData,
+						totalBookings: bookings.length,
+					};
+				},
+			);
 
 			return futureUsage;
 		}),

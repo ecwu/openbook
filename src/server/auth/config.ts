@@ -1,6 +1,7 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import type { DefaultSession, NextAuthConfig } from "next-auth";
 import AuthentikProvider from "next-auth/providers/authentik";
+import { eq, and } from "drizzle-orm";
 
 import { db } from "@/server/db";
 import {
@@ -8,6 +9,8 @@ import {
 	sessions,
 	users,
 	verificationTokens,
+	groups,
+	userGroups,
 } from "@/server/db/schema";
 
 /**

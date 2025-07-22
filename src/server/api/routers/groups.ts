@@ -448,4 +448,31 @@ export const groupsRouter = createTRPCRouter({
 
 			return allowedResources;
 		}),
+
+	// Delete group (admin only)
+	delete: protectedProcedure
+		.input(z.object({ id: z.string() }))
+		.mutation(async ({ ctx, input }) => {
+			// Check if user is admin
+			const currentUser = await ctx.db.query.users.findFirst({
+				where: eq(users.id, ctx.session.user.id),
+			});
+			if (currentUser?.role !== "admin") {
+				throw new Error("Unauthorized: Admin access required");
+			}
+
+			// Check if group exists
+			const group = await ctx.db.query.groups.findFirst({
+				where: eq(groups.id, input.id),
+			});
+
+			if (!group) {
+				throw new Error("Group not found");
+			}
+
+			// Delete the group (cascade will handle userGroups, groupResourceAccess, etc.)
+			await ctx.db.delete(groups).where(eq(groups.id, input.id));
+
+			return { success: true };
+		}),
 });
