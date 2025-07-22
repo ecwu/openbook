@@ -113,6 +113,8 @@ export function BookingCalendar() {
     // Round to nearest hour
     clickedDate.setMinutes(0, 0, 0);
 
+    // Clear selectInfo when using single date click
+    setSelectInfo(null);
     setDateClickInfo({
       date: clickedDate,
       resourceId: selectedResourceId === "all" ? undefined : selectedResourceId,
@@ -166,6 +168,8 @@ export function BookingCalendar() {
     // Round end time to nearest hour
     endDate.setMinutes(0, 0, 0);
 
+    // Clear dateClickInfo when using drag selection
+    setDateClickInfo(null);
     setSelectInfo({
       start: startDate,
       end: endDate,
@@ -349,8 +353,8 @@ export function BookingCalendar() {
             eventResize={handleEventResize}
             select={handleSelect}
             height="auto"
-            slotMinTime="06:00:00"
-            slotMaxTime="22:00:00"
+            slotMinTime="00:00:00"
+            slotMaxTime="24:00:00"
             allDaySlot={false}
             nowIndicator={true}
             eventTimeFormat={{
@@ -371,9 +375,9 @@ export function BookingCalendar() {
       <CreateBookingDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
-        defaultDate={dateClickInfo?.date || selectInfo?.start}
+        defaultDate={selectInfo?.start || dateClickInfo?.date}
         defaultEndDate={selectInfo?.end}
-        defaultResourceId={dateClickInfo?.resourceId || selectInfo?.resourceId}
+        defaultResourceId={selectInfo?.resourceId || dateClickInfo?.resourceId}
         onSuccess={() => {
           void refetch();
           setDateClickInfo(null);
