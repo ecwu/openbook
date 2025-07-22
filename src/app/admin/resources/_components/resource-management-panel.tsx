@@ -71,6 +71,7 @@ export function ResourceManagementPanel() {
 	const [search, setSearch] = useState("");
 	const [statusFilter, setStatusFilter] = useState<string>("all");
 	const [typeFilter, setTypeFilter] = useState<string>("all");
+	const [activeFilter, setActiveFilter] = useState<string>("all");
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const [editingResource, setEditingResource] = useState<Resource | null>(null);
 	const [deletingResource, setDeletingResource] = useState<Resource | null>(
@@ -92,6 +93,7 @@ export function ResourceManagementPanel() {
 				? undefined
 				: (statusFilter as "available" | "maintenance" | "offline"),
 		type: typeFilter === "all" ? undefined : typeFilter,
+		isActive: activeFilter === "all" ? undefined : activeFilter === "active",
 		limit: 50,
 		sortBy,
 		sortOrder,
@@ -171,6 +173,16 @@ export function ResourceManagementPanel() {
 							))}
 						</SelectContent>
 					</Select>
+					<Select value={activeFilter} onValueChange={setActiveFilter}>
+						<SelectTrigger className="w-[140px]">
+							<SelectValue placeholder="State" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All States</SelectItem>
+							<SelectItem value="active">Active</SelectItem>
+							<SelectItem value="inactive">Disabled</SelectItem>
+						</SelectContent>
+					</Select>
 				</div>
 				<div className="flex gap-2">
 					<Button variant="outline" onClick={handleRefresh}>
@@ -185,7 +197,7 @@ export function ResourceManagementPanel() {
 			</div>
 
 			{/* Resources Overview Cards */}
-			<div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+			<div className="grid grid-cols-1 gap-4 md:grid-cols-4">
 				<Card>
 					<CardHeader className="pb-2">
 						<CardTitle className="font-medium text-sm">
@@ -202,7 +214,7 @@ export function ResourceManagementPanel() {
 					</CardHeader>
 					<CardContent>
 						<div className="font-bold text-2xl text-green-600">
-							{resources.filter((r) => r.status === "available").length}
+							{resources.filter((r) => r.status === "available" && r.isActive).length}
 						</div>
 					</CardContent>
 				</Card>
@@ -216,9 +228,21 @@ export function ResourceManagementPanel() {
 						<div className="font-bold text-2xl text-orange-600">
 							{
 								resources.filter(
-									(r) => r.status === "maintenance" || r.status === "offline",
+									(r) => (r.status === "maintenance" || r.status === "offline") && r.isActive,
 								).length
 							}
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle className="font-medium text-sm">
+							Disabled
+						</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<div className="font-bold text-2xl text-red-600">
+							{resources.filter((r) => !r.isActive).length}
 						</div>
 					</CardContent>
 				</Card>
@@ -263,10 +287,12 @@ export function ResourceManagementPanel() {
 								</TableHeader>
 								<TableBody>
 									{resources.map((resource) => (
-										<TableRow key={resource.id}>
+										<TableRow key={resource.id} className={!resource.isActive ? "opacity-60" : ""}>
 											<TableCell className="font-medium">
 												<div className="space-y-1">
-													<div>{resource.name}</div>
+													<div className={!resource.isActive ? "text-muted-foreground line-through" : ""}>
+														{resource.name}
+													</div>
 													{resource.description && (
 														<div className="line-clamp-1 text-muted-foreground text-xs">
 															{resource.description}
@@ -287,6 +313,11 @@ export function ResourceManagementPanel() {
 													<Badge variant={getStatusVariant(resource.status)}>
 														{resource.status}
 													</Badge>
+													{!resource.isActive && (
+														<Badge variant="destructive" className="text-xs">
+															Disabled
+														</Badge>
+													)}
 												</div>
 											</TableCell>
 											<TableCell>

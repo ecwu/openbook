@@ -8,6 +8,7 @@ import {
 	NavigationMenuList,
 	NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { UserDropdown } from "@/components/user-dropdown";
 import { auth } from "@/server/auth";
 import Link from "next/link";
@@ -84,13 +85,16 @@ export async function Navbar() {
 				<div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
 					<div className="w-full flex-1 md:w-auto md:flex-none"></div>
 
-					{session?.user ? (
-						<UserDropdown user={session.user} />
-					) : (
-						<Button asChild>
-							<Link href="/api/auth/signin">Sign In</Link>
-						</Button>
-					)}
+					<div className="flex items-center gap-2">
+						<ThemeToggle />
+						{session?.user ? (
+							<UserDropdown user={session.user} />
+						) : (
+							<Button asChild>
+								<Link href="/api/auth/signin">Sign In</Link>
+							</Button>
+						)}
+					</div>
 				</div>
 			</div>
 		</nav>

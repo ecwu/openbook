@@ -84,7 +84,6 @@ export function CreateBookingDialog({
 	// Fetch resources
 	const { data: resources = [] } = api.resources.list.useQuery({
 		limit: 100,
-		status: "available",
 		sortBy: "name",
 		sortOrder: "asc",
 	});
@@ -174,6 +173,25 @@ export function CreateBookingDialog({
 			return;
 		}
 
+		// Check if selected resource is bookable
+		const selectedResource = resources.find((r) => r.id === values.resourceId);
+		if (!selectedResource) {
+			toast.error("Selected resource not found");
+			return;
+		}
+		if (selectedResource.status === "offline") {
+			toast.error("Cannot book an offline resource");
+			return;
+		}
+		if (!selectedResource.isActive) {
+			toast.error("Cannot book a disabled resource");
+			return;
+		}
+		if (selectedResource.status === "maintenance") {
+			toast.error("Cannot book a resource that is in maintenance");
+			return;
+		}
+
 		createBooking.mutate({
 			...values,
 			startTime,
@@ -214,12 +232,20 @@ export function CreateBookingDialog({
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>
-												{resources.map((resource) => (
-													<SelectItem key={resource.id} value={resource.id}>
+												{resources
+													.filter((resource) => resource.status !== "offline") // Hide offline resources
+													.map((resource) => (
+													<SelectItem 
+														key={resource.id} 
+														value={resource.id}
+														disabled={!resource.isActive || resource.status !== "available"} // Disable if not active or not available
+														className={!resource.isActive || resource.status !== "available" ? "text-muted-foreground" : ""}
+													>
 														{resource.name} ({resource.type}) -{" "}
 														{resource.totalCapacity} {resource.capacityUnit}
-														{resource.status !== "available" &&
-															` - ${resource.status}`}
+														{!resource.isActive && " - DISABLED"}
+														{resource.isActive && resource.status !== "available" &&
+															` - ${resource.status.toUpperCase()}`}
 													</SelectItem>
 												))}
 											</SelectContent>
