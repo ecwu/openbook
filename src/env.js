@@ -11,7 +11,7 @@ export const env = createEnv({
 			process.env.NODE_ENV === "production"
 				? z.string()
 				: z.string().optional(),
-		
+
 		AUTH_AUTHENTIK_ID: z.string().optional(),
 		AUTH_AUTHENTIK_SECRET: z.string().optional(),
 		AUTH_AUTHENTIK_ISSUER: z.string().optional(),

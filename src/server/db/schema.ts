@@ -135,9 +135,7 @@ export const groups = createTable(
 			.notNull(),
 		updatedAt: d.timestamp({ withTimezone: true }).$onUpdate(() => new Date()),
 	}),
-	(t) => [
-		index("group_name_idx").on(t.name),
-	],
+	(t) => [index("group_name_idx").on(t.name)],
 );
 
 // Junction table for users and groups (many-to-many)
@@ -257,9 +255,7 @@ export const bookings = createTable(
 		bookingType: d.varchar({ length: 20 }).notNull(), // shared, exclusive
 		status: d.varchar({ length: 20 }).notNull().default("pending"), // pending, approved, active, completed, cancelled, rejected
 		priority: d.varchar({ length: 10 }).notNull().default("normal"), // low, normal, high, critical
-		approvedById: d
-			.varchar({ length: 255 })
-			.references(() => users.id),
+		approvedById: d.varchar({ length: 255 }).references(() => users.id),
 		approvedAt: d.timestamp({ withTimezone: true }),
 		rejectionReason: d.text(),
 		actualStartTime: d.timestamp({ withTimezone: true }),
@@ -344,19 +340,43 @@ export const resourcesRelations = relations(resources, ({ many }) => ({
 	resourceLimits: many(resourceLimits),
 }));
 
-export const groupResourceAccessRelations = relations(groupResourceAccess, ({ one }) => ({
-	group: one(groups, { fields: [groupResourceAccess.groupId], references: [groups.id] }),
-	resource: one(resources, { fields: [groupResourceAccess.resourceId], references: [resources.id] }),
-	createdBy: one(users, { fields: [groupResourceAccess.createdById], references: [users.id] }),
-}));
+export const groupResourceAccessRelations = relations(
+	groupResourceAccess,
+	({ one }) => ({
+		group: one(groups, {
+			fields: [groupResourceAccess.groupId],
+			references: [groups.id],
+		}),
+		resource: one(resources, {
+			fields: [groupResourceAccess.resourceId],
+			references: [resources.id],
+		}),
+		createdBy: one(users, {
+			fields: [groupResourceAccess.createdById],
+			references: [users.id],
+		}),
+	}),
+);
 
 export const bookingsRelations = relations(bookings, ({ one }) => ({
 	user: one(users, { fields: [bookings.userId], references: [users.id] }),
-	resource: one(resources, { fields: [bookings.resourceId], references: [resources.id] }),
-	approvedBy: one(users, { fields: [bookings.approvedById], references: [users.id] }),
+	resource: one(resources, {
+		fields: [bookings.resourceId],
+		references: [resources.id],
+	}),
+	approvedBy: one(users, {
+		fields: [bookings.approvedById],
+		references: [users.id],
+	}),
 }));
 
 export const resourceLimitsRelations = relations(resourceLimits, ({ one }) => ({
-	resource: one(resources, { fields: [resourceLimits.resourceId], references: [resources.id] }),
-	createdBy: one(users, { fields: [resourceLimits.createdById], references: [users.id] }),
+	resource: one(resources, {
+		fields: [resourceLimits.resourceId],
+		references: [resources.id],
+	}),
+	createdBy: one(users, {
+		fields: [resourceLimits.createdById],
+		references: [users.id],
+	}),
 }));

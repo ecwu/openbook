@@ -3,8 +3,9 @@ import "@/styles/globals.css";
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 
-import { TRPCReactProvider } from "@/trpc/react";
 import { Navbar } from "@/components/navbar";
+import { Toaster } from "@/components/ui/sonner";
+import { TRPCReactProvider } from "@/trpc/react";
 
 export const metadata: Metadata = {
 	title: "OpenBook - Resource Management",
@@ -26,6 +27,7 @@ export default function RootLayout({
 				<TRPCReactProvider>
 					<Navbar />
 					{children}
+					<Toaster />
 				</TRPCReactProvider>
 			</body>
 		</html>
