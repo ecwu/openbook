@@ -7,6 +7,7 @@ import {
   userGroups,
   users,
 } from "@/server/db/schema";
+import { getUsagePeriodRange } from "@/lib/usage-utils";
 import { and, asc, desc, eq, gte, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -662,6 +663,89 @@ export const limitsRouter = createTRPCRouter({
           completed: userBookings.filter((b) => b.status === "completed")
             .length,
         },
+      };
+    }),
+
+  // Get dashboard usage metrics for daily/weekly/monthly periods
+  getDashboardUsage: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string().optional(),
+        resourceId: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const targetUserId = input.userId || ctx.session.user.id;
+      const currentUser = await ctx.db.query.users.findFirst({
+        where: eq(users.id, ctx.session.user.id),
+      });
+
+      const isAdmin = currentUser?.role === "admin";
+
+      if (!isAdmin && targetUserId !== ctx.session.user.id) {
+        throw new Error("Unauthorized: Can only view own usage statistics");
+      }
+
+      // Helper function to get usage stats for a specific period
+      const getUsageForPeriod = async (period: 'daily' | 'weekly' | 'monthly') => {
+        const { startDate, endDate } = getUsagePeriodRange(period);
+        
+        const conditions = [
+          eq(bookings.userId, targetUserId),
+          gte(bookings.startTime, startDate),
+          lte(bookings.endTime, endDate),
+          or(
+            eq(bookings.status, "approved"),
+            eq(bookings.status, "active"),
+            eq(bookings.status, "completed")
+          ),
+        ];
+
+        if (input.resourceId) {
+          conditions.push(eq(bookings.resourceId, input.resourceId));
+        }
+
+        const periodBookings = await ctx.db.query.bookings.findMany({
+          where: and(...conditions),
+          with: {
+            resource: {
+              columns: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+          },
+        });
+
+        const totalHours = periodBookings.reduce((acc, booking) => {
+          const hours =
+            (booking.endTime.getTime() - booking.startTime.getTime()) /
+            (1000 * 60 * 60);
+          return acc + hours;
+        }, 0);
+
+        return {
+          period,
+          dateRange: { startDate, endDate },
+          totalBookings: periodBookings.length,
+          totalHours: Number(totalHours.toFixed(2)),
+          activeBookings: periodBookings.filter((b) => b.status === "active").length,
+          completedBookings: periodBookings.filter((b) => b.status === "completed").length,
+        };
+      };
+
+      // Get usage for all three periods
+      const [dailyUsage, weeklyUsage, monthlyUsage] = await Promise.all([
+        getUsageForPeriod('daily'),
+        getUsageForPeriod('weekly'),
+        getUsageForPeriod('monthly'),
+      ]);
+
+      return {
+        daily: dailyUsage,
+        weekly: weeklyUsage,
+        monthly: monthlyUsage,
       };
     }),
 });

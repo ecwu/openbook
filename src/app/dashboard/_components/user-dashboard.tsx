@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { LimitCard } from "./limit-card";
 import { UsageChart } from "./usage-chart";
+import { UsagePeriodCard } from "./usage-period-card";
 
 // Helper to cast database limits to expected type
 const asLimitCardProps = (limit: unknown) =>
@@ -34,13 +35,17 @@ export function UserDashboard() {
   const { data: usageStats, isLoading: usageLoading } =
     api.limits.getUsageStats.useQuery({});
 
+  // Get dashboard usage metrics (daily/weekly/monthly)
+  const { data: dashboardUsage, isLoading: dashboardUsageLoading } =
+    api.limits.getDashboardUsage.useQuery({});
+
   // Get recent bookings
   const { data: recentBookings = [], isLoading: bookingsLoading } =
     api.bookings.list.useQuery({
       limit: 5,
     });
 
-  if (limitsLoading || usageLoading || bookingsLoading) {
+  if (limitsLoading || usageLoading || dashboardUsageLoading || bookingsLoading) {
     return <div>Loading dashboard...</div>;
   }
 
@@ -117,6 +122,18 @@ export function UserDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Usage Period Cards */}
+      {dashboardUsage && (
+        <div>
+          <h2 className="mb-4 font-semibold text-lg">Usage Summary</h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <UsagePeriodCard data={dashboardUsage.daily} />
+            <UsagePeriodCard data={dashboardUsage.weekly} />
+            <UsagePeriodCard data={dashboardUsage.monthly} />
+          </div>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
