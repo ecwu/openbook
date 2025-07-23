@@ -72,7 +72,7 @@ export function CreateGroupDialog({
 		},
 	});
 
-	const form = useForm<CreateGroupFormData>({
+	const form = useForm({
 		resolver: zodResolver(createGroupSchema),
 		defaultValues: {
 			name: "",

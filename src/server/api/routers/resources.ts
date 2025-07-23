@@ -142,10 +142,10 @@ export const resourcesRouter = createTRPCRouter({
 
 			// If user is not admin and onlyAccessible is true, filter by group access
 			if (!isAdmin && input.onlyAccessible) {
-				const userGroups = await ctx.db.query.userGroups.findMany({
+				const userGroupsData = await ctx.db.query.userGroups.findMany({
 					where: eq(userGroups.userId, ctx.session.user.id),
 				});
-				const userGroupIds = userGroups.map((ug) => ug.groupId);
+				const userGroupIds = userGroupsData.map((ug) => ug.groupId);
 
 				resourcesList = resourcesList.filter((resource) => {
 					const accessRules = resource.groupAccess;
@@ -270,10 +270,10 @@ export const resourcesRouter = createTRPCRouter({
 
 			// Check if user has access to this resource (if not admin)
 			if (!isAdmin) {
-				const userGroups = await ctx.db.query.userGroups.findMany({
+				const userGroupsData = await ctx.db.query.userGroups.findMany({
 					where: eq(userGroups.userId, ctx.session.user.id),
 				});
-				const userGroupIds = userGroups.map((ug) => ug.groupId);
+				const userGroupIds = userGroupsData.map((ug) => ug.groupId);
 
 				const accessRules = resource.groupAccess.filter((rule) =>
 					userGroupIds.includes(rule.groupId),
@@ -412,14 +412,14 @@ export const resourcesRouter = createTRPCRouter({
 
 			// Check access if not admin
 			if (!isAdmin) {
-				const userGroups = await ctx.db.query.userGroups.findMany({
-					where: eq(userGroups.userId, ctx.session.user.id),
-				});
-				const userGroupIds = userGroups.map((ug) => ug.groupId);
-
 				const accessRules = await ctx.db.query.groupResourceAccess.findMany({
 					where: and(eq(groupResourceAccess.resourceId, input.resourceId)),
 				});
+
+				const userGroupsData = await ctx.db.query.userGroups.findMany({
+					where: eq(userGroups.userId, ctx.session.user.id),
+				});
+				const userGroupIds = userGroupsData.map((ug) => ug.groupId);
 
 				const userAccessRules = accessRules.filter((rule) =>
 					userGroupIds.includes(rule.groupId),
@@ -496,10 +496,10 @@ export const resourcesRouter = createTRPCRouter({
 		}
 
 		// Get user's groups
-		const userGroups = await ctx.db.query.userGroups.findMany({
+		const userGroupsData = await ctx.db.query.userGroups.findMany({
 			where: eq(userGroups.userId, ctx.session.user.id),
 		});
-		const userGroupIds = userGroups.map((ug) => ug.groupId);
+		const userGroupIds = userGroupsData.map((ug) => ug.groupId);
 
 		// Get all resources
 		const allResources = await ctx.db.query.resources.findMany({
@@ -561,10 +561,10 @@ export const resourcesRouter = createTRPCRouter({
 
 			// Check access if not admin
 			if (!isAdmin) {
-				const userGroups = await ctx.db.query.userGroups.findMany({
+				const userGroupsData = await ctx.db.query.userGroups.findMany({
 					where: eq(userGroups.userId, ctx.session.user.id),
 				});
-				const userGroupIds = userGroups.map((ug) => ug.groupId);
+				const userGroupIds = userGroupsData.map((ug) => ug.groupId);
 
 				const accessRules = await ctx.db.query.groupResourceAccess.findMany({
 					where: eq(groupResourceAccess.resourceId, input.resourceId),

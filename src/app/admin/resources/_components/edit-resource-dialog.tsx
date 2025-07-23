@@ -43,10 +43,10 @@ const editResourceSchema = z.object({
 	location: z.string().optional(),
 	totalCapacity: z.number().min(1, "Capacity must be at least 1"),
 	capacityUnit: z.string().min(1, "Capacity unit is required").max(50),
-	isIndivisible: z.boolean().default(false),
+	isIndivisible: z.boolean(),
 	minAllocation: z.number().min(1).optional(),
 	maxAllocation: z.number().min(1).optional(),
-	isActive: z.boolean().default(true),
+	isActive: z.boolean(),
 });
 
 type EditResourceForm = z.infer<typeof editResourceSchema>;

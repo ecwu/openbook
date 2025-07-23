@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, differenceInMinutes, differenceInHours } from "date-fns";
+import { differenceInHours, differenceInMinutes, format } from "date-fns";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -66,7 +66,9 @@ export function CreateBookingDialog({
 	onSuccess,
 }: CreateBookingDialogProps) {
 	const [selectedResource, setSelectedResource] = useState<any>(null);
-	const [availableCapacity, setAvailableCapacity] = useState<number | null>(null);
+	const [availableCapacity, setAvailableCapacity] = useState<number | null>(
+		null,
+	);
 
 	const form = useForm<CreateBookingForm>({
 		resolver: zodResolver(createBookingSchema),
@@ -105,7 +107,26 @@ export function CreateBookingDialog({
 		{
 			enabled: !!(watchResourceId && watchStartTime && watchEndTime),
 			retryOnMount: false,
-		}
+		},
+	);
+
+	// Validate booking against user limits
+	const { data: limitValidation } = api.limits.validateBooking.useQuery(
+		{
+			resourceId: watchResourceId,
+			startTime: watchStartTime ? new Date(watchStartTime) : new Date(),
+			endTime: watchEndTime ? new Date(watchEndTime) : new Date(),
+			bookingType: watchBookingType as "shared" | "exclusive",
+		},
+		{
+			enabled: !!(
+				watchResourceId &&
+				watchStartTime &&
+				watchEndTime &&
+				watchBookingType
+			),
+			retryOnMount: false,
+		},
 	);
 
 	// Update available capacity when capacity data changes
@@ -167,13 +188,13 @@ export function CreateBookingDialog({
 
 		const minutes = differenceInMinutes(end, start);
 		if (minutes < 60) {
-			return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+			return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
 		}
 
 		const hours = differenceInHours(end, start);
 		const remainingMinutes = minutes % 60;
 		if (remainingMinutes === 0) {
-			return `${hours} hour${hours !== 1 ? 's' : ''}`;
+			return `${hours} hour${hours !== 1 ? "s" : ""}`;
 		}
 		return `${hours}h ${remainingMinutes}m`;
 	};
@@ -282,19 +303,28 @@ export function CreateBookingDialog({
 												{resources
 													.filter((resource) => resource.status !== "offline") // Hide offline resources
 													.map((resource) => (
-													<SelectItem 
-														key={resource.id} 
-														value={resource.id}
-														disabled={!resource.isActive || resource.status !== "available"} // Disable if not active or not available
-														className={!resource.isActive || resource.status !== "available" ? "text-muted-foreground" : ""}
-													>
-														{resource.name} ({resource.type}) -{" "}
-														{resource.totalCapacity} {resource.capacityUnit}
-														{!resource.isActive && " - DISABLED"}
-														{resource.isActive && resource.status !== "available" &&
-															` - ${resource.status.toUpperCase()}`}
-													</SelectItem>
-												))}
+														<SelectItem
+															key={resource.id}
+															value={resource.id}
+															disabled={
+																!resource.isActive ||
+																resource.status !== "available"
+															} // Disable if not active or not available
+															className={
+																!resource.isActive ||
+																resource.status !== "available"
+																	? "text-muted-foreground"
+																	: ""
+															}
+														>
+															{resource.name} ({resource.type}) -{" "}
+															{resource.totalCapacity} {resource.capacityUnit}
+															{!resource.isActive && " - DISABLED"}
+															{resource.isActive &&
+																resource.status !== "available" &&
+																` - ${resource.status.toUpperCase()}`}
+														</SelectItem>
+													))}
 											</SelectContent>
 										</Select>
 										<FormMessage />
@@ -309,19 +339,77 @@ export function CreateBookingDialog({
 										Resource Availability
 									</div>
 									<div className="text-blue-800">
-										<strong>{selectedResource.name}</strong> for {selectionDuration}
+										<strong>{selectedResource.name}</strong> for{" "}
+										{selectionDuration}
 									</div>
 									{availableCapacity !== null ? (
 										<div className="mt-1 text-blue-700">
-											Available: <strong>{availableCapacity}</strong> of {selectedResource.totalCapacity} {selectedResource.capacityUnit}
+											Available: <strong>{availableCapacity}</strong> of{" "}
+											{selectedResource.totalCapacity}{" "}
+											{selectedResource.capacityUnit}
 										</div>
 									) : (
-										<div className="mt-1 text-xs text-blue-600">
+										<div className="mt-1 text-blue-600 text-xs">
 											Checking availability...
 										</div>
 									)}
 								</div>
 							)}
+
+							{/* Limit Validation Warnings */}
+							{limitValidation && !limitValidation.valid && (
+								<div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-sm">
+									<div className="mb-2 font-medium text-orange-900">
+										⚠️ Limit Violations
+									</div>
+									<div className="space-y-1">
+										{limitValidation.violations.map((violation, index) => (
+											<div key={index} className="text-orange-800 text-xs">
+												• {violation}
+											</div>
+										))}
+									</div>
+									{limitValidation.usageStats && (
+										<div className="mt-2 border-orange-200 border-t pt-2">
+											<div className="font-medium text-orange-900 text-xs">
+												Current Usage:
+											</div>
+											<div className="mt-1 space-y-1 text-orange-700 text-xs">
+												{limitValidation.usageStats.dailyHours && (
+													<div>
+														Today: {limitValidation.usageStats.dailyHours}h
+													</div>
+												)}
+												{limitValidation.usageStats.weeklyHours && (
+													<div>
+														This week: {limitValidation.usageStats.weeklyHours}h
+													</div>
+												)}
+												{limitValidation.usageStats.monthlyHours && (
+													<div>
+														This month:{" "}
+														{limitValidation.usageStats.monthlyHours}h
+													</div>
+												)}
+											</div>
+										</div>
+									)}
+								</div>
+							)}
+
+							{/* Limit Validation Success */}
+							{limitValidation &&
+								limitValidation.valid &&
+								selectionDuration && (
+									<div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm">
+										<div className="mb-1 font-medium text-green-900">
+											✓ All Limits Satisfied
+										</div>
+										<div className="text-green-800 text-xs">
+											This booking complies with all your resource usage limits.
+										</div>
+									</div>
+								)}
 						</div>
 
 						{/* Basic Information */}
@@ -401,7 +489,9 @@ export function CreateBookingDialog({
 							{/* Duration Display */}
 							{selectionDuration && (
 								<div className="rounded-md bg-muted p-3 text-sm">
-									<div className="font-medium text-muted-foreground">Duration</div>
+									<div className="font-medium text-muted-foreground">
+										Duration
+									</div>
 									<div className="text-foreground">{selectionDuration}</div>
 								</div>
 							)}
@@ -460,7 +550,15 @@ export function CreateBookingDialog({
 												<Input
 													type="number"
 													min="1"
-													max={availableCapacity !== null ? Math.min(availableCapacity, selectedResource?.totalCapacity || Infinity) : selectedResource?.totalCapacity || undefined}
+													max={
+														availableCapacity !== null
+															? Math.min(
+																	availableCapacity,
+																	selectedResource?.totalCapacity ||
+																		Number.POSITIVE_INFINITY,
+																)
+															: selectedResource?.totalCapacity || undefined
+													}
 													disabled={
 														selectedResource?.isIndivisible ||
 														(watchBookingType === "exclusive" &&
@@ -533,8 +631,18 @@ export function CreateBookingDialog({
 							>
 								Cancel
 							</Button>
-							<Button type="submit" disabled={createBooking.isPending}>
-								{createBooking.isPending ? "Creating..." : "Create Booking"}
+							<Button
+								type="submit"
+								disabled={
+									createBooking.isPending ||
+									(limitValidation && !limitValidation.valid)
+								}
+							>
+								{createBooking.isPending
+									? "Creating..."
+									: limitValidation && !limitValidation.valid
+										? "Cannot Create - Limit Violations"
+										: "Create Booking"}
 							</Button>
 						</DialogFooter>
 					</form>

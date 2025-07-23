@@ -214,7 +214,10 @@ export function ResourceManagementPanel() {
 					</CardHeader>
 					<CardContent>
 						<div className="font-bold text-2xl text-green-600">
-							{resources.filter((r) => r.status === "available" && r.isActive).length}
+							{
+								resources.filter((r) => r.status === "available" && r.isActive)
+									.length
+							}
 						</div>
 					</CardContent>
 				</Card>
@@ -228,7 +231,9 @@ export function ResourceManagementPanel() {
 						<div className="font-bold text-2xl text-orange-600">
 							{
 								resources.filter(
-									(r) => (r.status === "maintenance" || r.status === "offline") && r.isActive,
+									(r) =>
+										(r.status === "maintenance" || r.status === "offline") &&
+										r.isActive,
 								).length
 							}
 						</div>
@@ -236,9 +241,7 @@ export function ResourceManagementPanel() {
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="font-medium text-sm">
-							Disabled
-						</CardTitle>
+						<CardTitle className="font-medium text-sm">Disabled</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<div className="font-bold text-2xl text-red-600">
@@ -287,10 +290,19 @@ export function ResourceManagementPanel() {
 								</TableHeader>
 								<TableBody>
 									{resources.map((resource) => (
-										<TableRow key={resource.id} className={!resource.isActive ? "opacity-60" : ""}>
+										<TableRow
+											key={resource.id}
+											className={!resource.isActive ? "opacity-60" : ""}
+										>
 											<TableCell className="font-medium">
 												<div className="space-y-1">
-													<div className={!resource.isActive ? "text-muted-foreground line-through" : ""}>
+													<div
+														className={
+															!resource.isActive
+																? "text-muted-foreground line-through"
+																: ""
+														}
+													>
 														{resource.name}
 													</div>
 													{resource.description && (

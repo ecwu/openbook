@@ -7,7 +7,18 @@ import {
 	userGroups,
 	users,
 } from "@/server/db/schema";
-import { and, asc, between, desc, eq, gte, lte, not, or, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	between,
+	desc,
+	eq,
+	gte,
+	lte,
+	not,
+	or,
+	sql,
+} from "drizzle-orm";
 
 function getResourceColor(resourceId: string, resourceName: string): string {
 	// Generate a consistent color based on resource ID/name
@@ -218,10 +229,10 @@ export const bookingsRouter = createTRPCRouter({
 
 			if (!isAdmin) {
 				// Check group access
-				const userGroups = await ctx.db.query.userGroups.findMany({
+				const userGroupsData = await ctx.db.query.userGroups.findMany({
 					where: eq(userGroups.userId, ctx.session.user.id),
 				});
-				const userGroupIds = userGroups.map((ug) => ug.groupId);
+				const userGroupIds = userGroupsData.map((ug) => ug.groupId);
 
 				const accessRules = resource.groupAccess.filter((rule) =>
 					userGroupIds.includes(rule.groupId),
@@ -807,7 +818,9 @@ export const bookingsRouter = createTRPCRouter({
 
 			// Calculate current allocation during this time period
 			const currentAllocation = overlappingBookings.reduce((total, booking) => {
-				return total + (booking.allocatedQuantity || booking.requestedQuantity || 0);
+				return (
+					total + (booking.allocatedQuantity || booking.requestedQuantity || 0)
+				);
 			}, 0);
 
 			const availableCapacity = resource.totalCapacity - currentAllocation;

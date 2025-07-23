@@ -45,12 +45,12 @@ interface CalendarEvent {
 	end: Date;
 	color: string;
 	extendedProps: {
-		description?: string;
+		description?: string | null;
 		status: string;
 		bookingType: string;
 		priority: string;
 		requestedQuantity: number;
-		allocatedQuantity?: number;
+		allocatedQuantity?: number | null;
 		resource: {
 			id: string;
 			name: string;
@@ -58,7 +58,7 @@ interface CalendarEvent {
 		};
 		user: {
 			id: string;
-			name: string;
+			name: string | null;
 		};
 		isOwner: boolean;
 	};

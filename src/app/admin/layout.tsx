@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Server, Shield, Users } from "lucide-react";
+import { Server, Settings, Shield, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -47,6 +47,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 							<Link href="/admin/groups" className="flex items-center gap-2">
 								<Users className="h-4 w-4" />
 								Groups
+							</Link>
+						</Button>
+						<Button asChild variant="ghost" className="justify-start">
+							<Link href="/admin/limits" className="flex items-center gap-2">
+								<Settings className="h-4 w-4" />
+								Limits
 							</Link>
 						</Button>
 					</nav>
