@@ -350,6 +350,7 @@ export const limitsRouter = createTRPCRouter({
         startTime: z.date(),
         endTime: z.date(),
         bookingType: z.enum(["shared", "exclusive"]),
+        requestedQuantity: z.number().int().min(1).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -364,43 +365,204 @@ export const limitsRouter = createTRPCRouter({
         throw new Error("Unauthorized: Can only validate own bookings");
       }
 
-      // Get all applicable limits
-      // TODO: Refactor to use shared helper function instead of calling procedure
-      // const userLimitsData = await ctx.procedures.limits.getForUser({
-      // 	userId: targetUserId,
-      // 	resourceId: input.resourceId,
-      // });
-
-      // For now, return empty violations - this needs to be implemented properly
-      // TODO: Implement proper limit validation by refactoring getForUser logic
       const violations: string[] = [];
 
-      /* 
-			// This logic is commented out until we properly fetch effectiveLimits
-			
-			// Check booking type restrictions
-			for (const limit of effectiveLimits) {
-				if (limit.allowedBookingTypes && limit.allowedBookingTypes.length > 0) {
-					if (!limit.allowedBookingTypes.includes(input.bookingType)) {
-						violations.push(
-							`Booking type '${input.bookingType}' not allowed by limit: ${limit.name}`,
-						);
-					}
-				}
-			}
+      // Get user's direct limits
+      const userLimits = await ctx.db.query.resourceLimits.findMany({
+        where: and(
+          eq(resourceLimits.limitType, "user"),
+          eq(resourceLimits.targetId, targetUserId),
+          eq(resourceLimits.isActive, true),
+          or(
+            eq(resourceLimits.resourceId, input.resourceId),
+            sql`${resourceLimits.resourceId} IS NULL`
+          )
+        ),
+        with: {
+          resource: true,
+        },
+      });
 
-			// ... rest of validation logic ...
-			*/
+      // Get user's groups
+      const userGroupsList = await ctx.db.query.userGroups.findMany({
+        where: eq(userGroups.userId, targetUserId),
+      });
+      const groupIds = userGroupsList.map((ug) => ug.groupId);
+
+      // Get group limits
+      let groupLimits: typeof userLimits = [];
+      let groupPerPersonLimits: typeof userLimits = [];
+
+      if (groupIds.length > 0) {
+        groupLimits = await ctx.db.query.resourceLimits.findMany({
+          where: and(
+            eq(resourceLimits.limitType, "group"),
+            sql`${resourceLimits.targetId} IN (${groupIds.map(() => '?').join(',')})`,
+            eq(resourceLimits.isActive, true),
+            or(
+              eq(resourceLimits.resourceId, input.resourceId),
+              sql`${resourceLimits.resourceId} IS NULL`
+            )
+          ),
+          with: {
+            resource: true,
+          },
+        });
+
+        groupPerPersonLimits = await ctx.db.query.resourceLimits.findMany({
+          where: and(
+            eq(resourceLimits.limitType, "group_per_person"),
+            sql`${resourceLimits.targetId} IN (${groupIds.map(() => '?').join(',')})`,
+            eq(resourceLimits.isActive, true),
+            or(
+              eq(resourceLimits.resourceId, input.resourceId),
+              sql`${resourceLimits.resourceId} IS NULL`
+            )
+          ),
+          with: {
+            resource: true,
+          },
+        });
+      }
+
+      const effectiveLimits = [
+        ...userLimits,
+        ...groupLimits,
+        ...groupPerPersonLimits,
+      ].sort((a, b) => b.priority - a.priority);
+
+      // Calculate booking duration in hours
+      const bookingDurationHours =
+        (input.endTime.getTime() - input.startTime.getTime()) / (1000 * 60 * 60);
+
+      // Check booking type restrictions
+      for (const limit of effectiveLimits) {
+        if (limit.allowedBookingTypes) {
+          const allowedTypes = Array.isArray(limit.allowedBookingTypes) 
+            ? limit.allowedBookingTypes 
+            : JSON.parse(limit.allowedBookingTypes as string) as string[];
+          
+          if (allowedTypes.length === 0) continue;
+          
+          if (!allowedTypes.includes(input.bookingType)) {
+            violations.push(
+              `Booking type '${input.bookingType}' not allowed by limit: ${limit.name}`
+            );
+          }
+        }
+      }
+
+      // Calculate current usage for time-based limits
+      const now = new Date();
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      // Get existing bookings for usage calculation
+      const existingBookings = await ctx.db.query.bookings.findMany({
+        where: and(
+          eq(bookings.userId, targetUserId),
+          or(
+            eq(bookings.status, "approved"),
+            eq(bookings.status, "active"),
+            eq(bookings.status, "pending")
+          ),
+          gte(bookings.startTime, startOfMonth) // Look back to start of month for monthly limits
+        ),
+      });
+
+      // Calculate current usage
+      const dailyBookings = existingBookings.filter(
+        b => b.startTime >= startOfDay
+      );
+      const weeklyBookings = existingBookings.filter(
+        b => b.startTime >= startOfWeek
+      );
+      const monthlyBookings = existingBookings.filter(
+        b => b.startTime >= startOfMonth
+      );
+
+      const dailyHours = dailyBookings.reduce((acc, booking) => {
+        return acc + (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
+      }, 0);
+
+      const weeklyHours = weeklyBookings.reduce((acc, booking) => {
+        return acc + (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
+      }, 0);
+
+      const monthlyHours = monthlyBookings.reduce((acc, booking) => {
+        return acc + (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
+      }, 0);
+
+      // Count concurrent bookings (overlapping with proposed booking time)
+      const concurrentBookings = existingBookings.filter(booking => {
+        return (
+          booking.startTime < input.endTime &&
+          booking.endTime > input.startTime
+        );
+      }).length;
+
+      // Check limits
+      for (const limit of effectiveLimits) {
+        // Daily hours limit
+        if (limit.maxHoursPerDay !== null && limit.maxHoursPerDay !== undefined) {
+          const projectedDailyHours = dailyHours + bookingDurationHours;
+          if (projectedDailyHours > limit.maxHoursPerDay) {
+            violations.push(
+              `Would exceed daily limit of ${limit.maxHoursPerDay} hours (current: ${dailyHours.toFixed(2)}h, requested: ${bookingDurationHours.toFixed(2)}h) - ${limit.name}`
+            );
+          }
+        }
+
+        // Weekly hours limit
+        if (limit.maxHoursPerWeek !== null && limit.maxHoursPerWeek !== undefined) {
+          const projectedWeeklyHours = weeklyHours + bookingDurationHours;
+          if (projectedWeeklyHours > limit.maxHoursPerWeek) {
+            violations.push(
+              `Would exceed weekly limit of ${limit.maxHoursPerWeek} hours (current: ${weeklyHours.toFixed(2)}h, requested: ${bookingDurationHours.toFixed(2)}h) - ${limit.name}`
+            );
+          }
+        }
+
+        // Monthly hours limit
+        if (limit.maxHoursPerMonth !== null && limit.maxHoursPerMonth !== undefined) {
+          const projectedMonthlyHours = monthlyHours + bookingDurationHours;
+          if (projectedMonthlyHours > limit.maxHoursPerMonth) {
+            violations.push(
+              `Would exceed monthly limit of ${limit.maxHoursPerMonth} hours (current: ${monthlyHours.toFixed(2)}h, requested: ${bookingDurationHours.toFixed(2)}h) - ${limit.name}`
+            );
+          }
+        }
+
+        // Concurrent bookings limit
+        if (limit.maxConcurrentBookings !== null && limit.maxConcurrentBookings !== undefined) {
+          if (concurrentBookings >= limit.maxConcurrentBookings) {
+            violations.push(
+              `Would exceed concurrent bookings limit of ${limit.maxConcurrentBookings} (current: ${concurrentBookings}) - ${limit.name}`
+            );
+          }
+        }
+
+        // Daily bookings limit
+        if (limit.maxBookingsPerDay !== null && limit.maxBookingsPerDay !== undefined) {
+          if (dailyBookings.length >= limit.maxBookingsPerDay) {
+            violations.push(
+              `Would exceed daily bookings limit of ${limit.maxBookingsPerDay} (current: ${dailyBookings.length}) - ${limit.name}`
+            );
+          }
+        }
+      }
 
       return {
         valid: violations.length === 0,
         violations,
         usageStats: {
-          dailyHours: 0,
-          weeklyHours: 0,
-          monthlyHours: 0,
-          concurrentBookings: 0,
-          dailyBookings: 0,
+          dailyHours: Number(dailyHours.toFixed(2)),
+          weeklyHours: Number(weeklyHours.toFixed(2)),
+          monthlyHours: Number(monthlyHours.toFixed(2)),
+          concurrentBookings,
+          dailyBookings: dailyBookings.length,
         },
       };
     }),

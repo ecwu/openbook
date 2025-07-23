@@ -39,7 +39,17 @@ const createBookingSchema = z.object({
 	resourceId: z.string().min(1, "Resource is required"),
 	title: z.string().min(1, "Title is required").max(255),
 	description: z.string().optional(),
-	startTime: z.string().min(1, "Start time is required"),
+	startTime: z.string().min(1, "Start time is required").refine(
+		(dateString) => {
+			const date = new Date(dateString);
+			const twoHoursAgo = new Date();
+			twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+			return date >= twoHoursAgo;
+		},
+		{
+			message: "Start time cannot be earlier than 2 hours ago",
+		}
+	),
 	endTime: z.string().min(1, "End time is required"),
 	requestedQuantity: z.number().min(1, "Quantity must be at least 1"),
 	bookingType: z.enum(["shared", "exclusive"]),

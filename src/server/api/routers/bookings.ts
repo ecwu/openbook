@@ -42,7 +42,16 @@ const bookingCreateSchema = z.object({
   resourceId: z.string(),
   title: z.string().min(1).max(255),
   description: z.string().optional(),
-  startTime: z.date(),
+  startTime: z.date().refine(
+    (date) => {
+      const twoHoursAgo = new Date();
+      twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+      return date >= twoHoursAgo;
+    },
+    {
+      message: "Start time cannot be earlier than 2 hours ago",
+    }
+  ),
   endTime: z.date(),
   requestedQuantity: z.number().int().min(1),
   bookingType: z.enum(["shared", "exclusive"]),
@@ -54,7 +63,16 @@ const bookingUpdateSchema = z.object({
   id: z.string(),
   title: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
-  startTime: z.date().optional(),
+  startTime: z.date().refine(
+    (date) => {
+      const twoHoursAgo = new Date();
+      twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+      return date >= twoHoursAgo;
+    },
+    {
+      message: "Start time cannot be earlier than 2 hours ago",
+    }
+  ).optional(),
   endTime: z.date().optional(),
   requestedQuantity: z.number().int().min(1).optional(),
   bookingType: z.enum(["shared", "exclusive"]).optional(),
@@ -340,8 +358,200 @@ export const bookingsRouter = createTRPCRouter({
         throw new Error("Indivisible resources can only be booked exclusively");
       }
 
-      // TODO: Check resource limits (daily/weekly/monthly hours, booking counts, etc.)
-      // This would involve querying resourceLimits table and calculating current usage
+      // Check resource limits for non-admin users
+      if (!isAdmin) {
+        // Validate booking against resource limits
+        const violations: string[] = [];
+
+        // Get user's direct limits
+        const userLimits = await ctx.db.query.resourceLimits.findMany({
+          where: and(
+            eq(resourceLimits.limitType, "user"),
+            eq(resourceLimits.targetId, ctx.session.user.id),
+            eq(resourceLimits.isActive, true),
+            or(
+              eq(resourceLimits.resourceId, input.resourceId),
+              sql`${resourceLimits.resourceId} IS NULL`
+            )
+          ),
+        });
+
+        // Get user's groups
+        const userGroupsList = await ctx.db.query.userGroups.findMany({
+          where: eq(userGroups.userId, ctx.session.user.id),
+        });
+        const groupIds = userGroupsList.map((ug) => ug.groupId);
+
+        // Get group and group per-person limits
+        let groupLimits: typeof userLimits = [];
+        let groupPerPersonLimits: typeof userLimits = [];
+
+        if (groupIds.length > 0) {
+          const groupLimitsQuery = ctx.db.query.resourceLimits.findMany({
+            where: and(
+              eq(resourceLimits.limitType, "group"),
+              sql`${resourceLimits.targetId} = ANY(ARRAY[${groupIds.map(id => `'${id}'`).join(',')}])`,
+              eq(resourceLimits.isActive, true),
+              or(
+                eq(resourceLimits.resourceId, input.resourceId),
+                sql`${resourceLimits.resourceId} IS NULL`
+              )
+            ),
+          });
+
+          const groupPerPersonLimitsQuery = ctx.db.query.resourceLimits.findMany({
+            where: and(
+              eq(resourceLimits.limitType, "group_per_person"),
+              sql`${resourceLimits.targetId} = ANY(ARRAY[${groupIds.map(id => `'${id}'`).join(',')}])`,
+              eq(resourceLimits.isActive, true),
+              or(
+                eq(resourceLimits.resourceId, input.resourceId),
+                sql`${resourceLimits.resourceId} IS NULL`
+              )
+            ),
+          });
+
+          [groupLimits, groupPerPersonLimits] = await Promise.all([
+            groupLimitsQuery,
+            groupPerPersonLimitsQuery,
+          ]);
+        }
+
+        const effectiveLimits = [
+          ...userLimits,
+          ...groupLimits,
+          ...groupPerPersonLimits,
+        ].sort((a, b) => b.priority - a.priority);
+
+        if (effectiveLimits.length > 0) {
+          // Calculate booking duration in hours
+          const bookingDurationHours =
+            (input.endTime.getTime() - input.startTime.getTime()) / (1000 * 60 * 60);
+
+          // Calculate current usage for time-based limits
+          const now = new Date();
+          const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const startOfWeek = new Date(startOfDay);
+          startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+          // Get existing bookings for usage calculation
+          const existingBookings = await ctx.db.query.bookings.findMany({
+            where: and(
+              eq(bookings.userId, ctx.session.user.id),
+              or(
+                eq(bookings.status, "approved"),
+                eq(bookings.status, "active"),
+                eq(bookings.status, "pending")
+              ),
+              gte(bookings.startTime, startOfMonth)
+            ),
+          });
+
+          // Calculate current usage
+          const dailyBookings = existingBookings.filter(
+            b => b.startTime >= startOfDay
+          );
+          const weeklyBookings = existingBookings.filter(
+            b => b.startTime >= startOfWeek
+          );
+          const monthlyBookings = existingBookings.filter(
+            b => b.startTime >= startOfMonth
+          );
+
+          const dailyHours = dailyBookings.reduce((acc, booking) => {
+            return acc + (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
+          }, 0);
+
+          const weeklyHours = weeklyBookings.reduce((acc, booking) => {
+            return acc + (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
+          }, 0);
+
+          const monthlyHours = monthlyBookings.reduce((acc, booking) => {
+            return acc + (booking.endTime.getTime() - booking.startTime.getTime()) / (1000 * 60 * 60);
+          }, 0);
+
+          // Count concurrent bookings
+          const concurrentBookings = existingBookings.filter(booking => {
+            return (
+              booking.startTime < input.endTime &&
+              booking.endTime > input.startTime
+            );
+          }).length;
+
+          // Check limits
+          for (const limit of effectiveLimits) {
+            // Check booking type restrictions
+            if (limit.allowedBookingTypes) {
+              const allowedTypes = Array.isArray(limit.allowedBookingTypes) 
+                ? limit.allowedBookingTypes 
+                : JSON.parse(limit.allowedBookingTypes as string) as string[];
+              
+              if (allowedTypes.length === 0) continue;
+              
+              if (!allowedTypes.includes(input.bookingType)) {
+                violations.push(
+                  `Booking type '${input.bookingType}' not allowed by limit: ${limit.name}`
+                );
+              }
+            }
+
+            // Daily hours limit
+            if (limit.maxHoursPerDay !== null && limit.maxHoursPerDay !== undefined) {
+              const projectedDailyHours = dailyHours + bookingDurationHours;
+              if (projectedDailyHours > limit.maxHoursPerDay) {
+                violations.push(
+                  `Would exceed daily limit of ${limit.maxHoursPerDay} hours (current: ${dailyHours.toFixed(2)}h, requested: ${bookingDurationHours.toFixed(2)}h) - ${limit.name}`
+                );
+              }
+            }
+
+            // Weekly hours limit
+            if (limit.maxHoursPerWeek !== null && limit.maxHoursPerWeek !== undefined) {
+              const projectedWeeklyHours = weeklyHours + bookingDurationHours;
+              if (projectedWeeklyHours > limit.maxHoursPerWeek) {
+                violations.push(
+                  `Would exceed weekly limit of ${limit.maxHoursPerWeek} hours (current: ${weeklyHours.toFixed(2)}h, requested: ${bookingDurationHours.toFixed(2)}h) - ${limit.name}`
+                );
+              }
+            }
+
+            // Monthly hours limit
+            if (limit.maxHoursPerMonth !== null && limit.maxHoursPerMonth !== undefined) {
+              const projectedMonthlyHours = monthlyHours + bookingDurationHours;
+              if (projectedMonthlyHours > limit.maxHoursPerMonth) {
+                violations.push(
+                  `Would exceed monthly limit of ${limit.maxHoursPerMonth} hours (current: ${monthlyHours.toFixed(2)}h, requested: ${bookingDurationHours.toFixed(2)}h) - ${limit.name}`
+                );
+              }
+            }
+
+            // Concurrent bookings limit
+            if (limit.maxConcurrentBookings !== null && limit.maxConcurrentBookings !== undefined) {
+              if (concurrentBookings >= limit.maxConcurrentBookings) {
+                violations.push(
+                  `Would exceed concurrent bookings limit of ${limit.maxConcurrentBookings} (current: ${concurrentBookings}) - ${limit.name}`
+                );
+              }
+            }
+
+            // Daily bookings limit
+            if (limit.maxBookingsPerDay !== null && limit.maxBookingsPerDay !== undefined) {
+              if (dailyBookings.length >= limit.maxBookingsPerDay) {
+                violations.push(
+                  `Would exceed daily bookings limit of ${limit.maxBookingsPerDay} (current: ${dailyBookings.length}) - ${limit.name}`
+                );
+              }
+            }
+          }
+
+          if (violations.length > 0) {
+            throw new Error(
+              `Booking violates resource limits:\n${violations.join('\n')}`
+            );
+          }
+        }
+      }
 
       // Create the booking
       const [newBooking] = await ctx.db
@@ -386,6 +596,12 @@ export const bookingsRouter = createTRPCRouter({
       // Can't update completed or cancelled bookings
       if (booking.status === "completed" || booking.status === "cancelled") {
         throw new Error("Cannot update completed or cancelled bookings");
+      }
+
+      // Prevent updating past bookings (end time < now)
+      const now = new Date();
+      if (booking.endTime < now) {
+        throw new Error("Cannot update bookings that have already ended");
       }
 
       // If changing times or quantity, validate and check conflicts
@@ -496,7 +712,7 @@ export const bookingsRouter = createTRPCRouter({
         }
       }
 
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (input.title) updateData.title = input.title;
       if (input.description !== undefined)
         updateData.description = input.description;
@@ -625,6 +841,12 @@ export const bookingsRouter = createTRPCRouter({
         throw new Error(
           "Cannot cancel completed or already cancelled bookings"
         );
+      }
+
+      // Prevent canceling past bookings (end time < now)
+      const now = new Date();
+      if (booking.endTime < now) {
+        throw new Error("Cannot cancel bookings that have already ended");
       }
 
       const [cancelledBooking] = await ctx.db
