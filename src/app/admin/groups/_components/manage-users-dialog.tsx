@@ -203,7 +203,12 @@ export function ManageUsersDialog({
 
 								<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 									<div className="space-y-2">
-										<label className="font-medium text-sm">Select User</label>
+										<label
+											className="font-medium text-sm"
+											htmlFor="select-user"
+										>
+											Select User
+										</label>
 										<Select
 											value={addUserForm.selectedUserId}
 											onValueChange={(value) =>
@@ -213,7 +218,7 @@ export function ManageUsersDialog({
 												}))
 											}
 										>
-											<SelectTrigger>
+											<SelectTrigger id="select-user">
 												<SelectValue placeholder="Select a user" />
 											</SelectTrigger>
 											<SelectContent>

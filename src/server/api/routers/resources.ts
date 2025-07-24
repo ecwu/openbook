@@ -350,7 +350,7 @@ export const resourcesRouter = createTRPCRouter({
         }
       }
 
-      const updateData: any = {};
+      const updateData: Partial<typeof resources.$inferInsert> = {};
       if (input.name) updateData.name = input.name;
       if (input.type) updateData.type = input.type;
       if (input.description !== undefined)

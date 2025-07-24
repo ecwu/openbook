@@ -39,17 +39,20 @@ const createBookingSchema = z.object({
 	resourceId: z.string().min(1, "Resource is required"),
 	title: z.string().min(1, "Title is required").max(255),
 	description: z.string().optional(),
-	startTime: z.string().min(1, "Start time is required").refine(
-		(dateString) => {
-			const date = new Date(dateString);
-			const twoHoursAgo = new Date();
-			twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
-			return date >= twoHoursAgo;
-		},
-		{
-			message: "Start time cannot be earlier than 2 hours ago",
-		}
-	),
+	startTime: z
+		.string()
+		.min(1, "Start time is required")
+		.refine(
+			(dateString) => {
+				const date = new Date(dateString);
+				const twoHoursAgo = new Date();
+				twoHoursAgo.setHours(twoHoursAgo.getHours() - 2);
+				return date >= twoHoursAgo;
+			},
+			{
+				message: "Start time cannot be earlier than 2 hours ago",
+			},
+		),
 	endTime: z.string().min(1, "End time is required"),
 	requestedQuantity: z.number().min(1, "Quantity must be at least 1"),
 	bookingType: z.enum(["shared", "exclusive"]),
@@ -408,18 +411,16 @@ export function CreateBookingDialog({
 							)}
 
 							{/* Limit Validation Success */}
-							{limitValidation &&
-								limitValidation.valid &&
-								selectionDuration && (
-									<div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm">
-										<div className="mb-1 font-medium text-green-900">
-											✓ All Limits Satisfied
-										</div>
-										<div className="text-green-800 text-xs">
-											This booking complies with all your resource usage limits.
-										</div>
+							{limitValidation?.valid && selectionDuration && (
+								<div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm">
+									<div className="mb-1 font-medium text-green-900">
+										✓ All Limits Satisfied
 									</div>
-								)}
+									<div className="text-green-800 text-xs">
+										This booking complies with all your resource usage limits.
+									</div>
+								</div>
+							)}
 						</div>
 
 						{/* Basic Information */}

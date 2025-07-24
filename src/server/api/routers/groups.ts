@@ -342,16 +342,15 @@ export const groupsRouter = createTRPCRouter({
 					)
 					.returning();
 				return updated;
-			} else {
-				const [created] = await ctx.db
-					.insert(groupResourceAccess)
-					.values({
-						...input,
-						createdById: ctx.session.user.id,
-					})
-					.returning();
-				return created;
 			}
+			const [created] = await ctx.db
+				.insert(groupResourceAccess)
+				.values({
+					...input,
+					createdById: ctx.session.user.id,
+				})
+				.returning();
+			return created;
 		}),
 
 	// Remove resource access for group (admin only)
