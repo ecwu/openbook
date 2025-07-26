@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -257,7 +258,7 @@ export function CreateBookingDialog({
     }
   }, [open, defaultDate, defaultEndDate, defaultResourceId, form]);
 
-  // Calculate selection duration
+  // Calculate selection duration and start time from now
   const getSelectionDuration = () => {
     if (!watchStartTime || !watchEndTime) return null;
     const start = new Date(watchStartTime);
@@ -277,7 +278,23 @@ export function CreateBookingDialog({
     return `${hours}h ${remainingMinutes}m`;
   };
 
+  const getStartTimeFromNow = () => {
+    if (!watchStartTime) return null;
+    const start = new Date(watchStartTime);
+    const now = new Date();
+    const hoursFromNow = Math.round(differenceInHours(start, now));
+
+    if (hoursFromNow < 0) {
+      return `Start ${Math.abs(hoursFromNow)} hours ago`;
+    } else if (hoursFromNow === 0) {
+      return "Start now";
+    } else {
+      return `Start ${hoursFromNow} hours from now`;
+    }
+  };
+
   const selectionDuration = getSelectionDuration();
+  const startTimeFromNow = getStartTimeFromNow();
 
   useEffect(() => {
     const resource = resources.find((r) => r.id === watchResourceId);
@@ -360,369 +377,226 @@ export function CreateBookingDialog({
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-col h-full"
           >
-            <div className="flex-1 overflow-y-auto space-y-6 max-w-xl pr-2"
-              style={{ maxHeight: 'calc(90vh - 180px)' }}
+            <div
+              className="flex-1 overflow-y-auto space-y-6 max-w-xl pr-2"
+              style={{ maxHeight: "calc(90vh - 180px)" }}
             >
-            {/* Resource Selection */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-muted-foreground text-sm">
-                Resource
-              </h3>
-              <FormField
-                control={form.control}
-                name="resourceId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Select Resource</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a resource to book" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {resources
-                          .filter((resource) => resource.status !== "offline") // Hide offline resources
-                          .map((resource) => (
-                            <SelectItem
-                              key={resource.id}
-                              value={resource.id}
-                              disabled={
-                                !resource.isActive ||
-                                resource.status !== "available"
-                              } // Disable if not active or not available
-                              className={
-                                !resource.isActive ||
-                                resource.status !== "available"
-                                  ? "text-muted-foreground"
-                                  : ""
-                              }
-                            >
-                              {resource.name} ({resource.type}) -{" "}
-                              {resource.totalCapacity} {resource.capacityUnit}
-                              {!resource.isActive && " - DISABLED"}
-                              {resource.isActive &&
-                                resource.status !== "available" &&
-                                ` - ${resource.status.toUpperCase()}`}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Available Capacity Display */}
-              {selectedResource && selectionDuration && (
-                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm">
-                  <div className="mb-1 font-medium text-blue-900">
-                    Resource Availability
-                  </div>
-                  <div className="text-blue-800">
-                    <strong>{selectedResource.name}</strong> for{" "}
-                    {selectionDuration}
-                  </div>
-                  {availableCapacity !== null ? (
-                    <div className="mt-1 text-blue-700">
-                      Available: <strong>{availableCapacity}</strong> of{" "}
-                      {selectedResource.totalCapacity}{" "}
-                      {selectedResource.capacityUnit}
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-blue-600 text-xs">
-                      Checking availability...
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Limit Validation Warnings */}
-              {limitValidation && !limitValidation.valid && (
-                <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-sm">
-                  <div className="mb-2 font-medium text-orange-900">
-                    ⚠️ Limit Violations
-                  </div>
-                  <div className="space-y-1">
-                    {limitValidation.violations.map((violation, index) => (
-                      <div key={index} className="text-orange-800 text-xs">
-                        • {violation}
-                      </div>
-                    ))}
-                  </div>
-                  {limitValidation.usageStats && (
-                    <div className="mt-2 border-orange-200 border-t pt-2">
-                      <div className="font-medium text-orange-900 text-xs">
-                        Current Usage:
-                      </div>
-                      <div className="mt-1 space-y-1 text-orange-700 text-xs">
-                        {limitValidation.usageStats.dailyHours && (
-                          <div>
-                            Today: {limitValidation.usageStats.dailyHours}h
-                          </div>
-                        )}
-                        {limitValidation.usageStats.weeklyHours && (
-                          <div>
-                            This week: {limitValidation.usageStats.weeklyHours}h
-                          </div>
-                        )}
-                        {limitValidation.usageStats.monthlyHours && (
-                          <div>
-                            This month:{" "}
-                            {limitValidation.usageStats.monthlyHours}h
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-muted-foreground text-sm">
-                Booking Details
-              </h3>
-
-              <div>
-                <label className="font-medium text-sm">Usage Type</label>
-                <Select
-                  value={selectedPreset}
-                  onValueChange={(value) => {
-                    setSelectedPreset(value);
-                    setIsCustomMode(value === "custom");
-                  }}
-                >
-                  <SelectTrigger className="mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {USAGE_PRESETS.map((preset) => (
-                      <SelectItem key={preset.value} value={preset.value}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedPreset === "custom" ? (
-                // Custom Mode - Show input fields
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Title</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., ML Training Job"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description (Optional)</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Brief description of the booking purpose"
-                            className="resize-none"
-                            rows={2}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              ) : (
-                // Preset Mode - Show preview
-                <div className="rounded-md bg-muted p-3 text-sm">
-                  <div className="font-medium">
-                    {
-                      USAGE_PRESETS.find((p) => p.value === selectedPreset)
-                        ?.title
-                    }
-                  </div>
-                  <div className="mt-1 text-muted-foreground">
-                    {
-                      USAGE_PRESETS.find((p) => p.value === selectedPreset)
-                        ?.description
-                    }
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Time Selection */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-muted-foreground text-sm">
-                Schedule
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="startTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Time</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>End Time</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Duration Display */}
-              {selectionDuration && (
-                <div className="rounded-md bg-muted p-3 text-sm">
-                  <div className="font-medium text-muted-foreground">
-                    Duration
-                  </div>
-                  <div className="text-foreground">{selectionDuration}</div>
-                </div>
-              )}
-            </div>
-
-            {/* Booking Configuration */}
-            <div className="space-y-4">
-              <h3 className="font-medium text-muted-foreground text-sm">
-                Configuration
-              </h3>
-              <FormField
-                control={form.control}
-                name="requestedQuantity"
-                render={({ field }) => (
-                  <FormItem
-                    className={
-                      watchBookingType === "exclusive" ? "opacity-60" : ""
-                    }
-                  >
-                    <FormLabel>Quantity</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        max={
-                          availableCapacity !== null
-                            ? Math.min(
-                                availableCapacity,
-                                selectedResource?.totalCapacity ||
-                                  Number.POSITIVE_INFINITY
-                              )
-                            : selectedResource?.totalCapacity || undefined
-                        }
-                        disabled={
-                          selectedResource?.isIndivisible ||
-                          (watchBookingType === "exclusive" &&
-                            !selectedResource?.isIndivisible)
-                        }
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(Number.parseInt(e.target.value) || 1)
-                        }
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {selectedResource && (
-                        <>
-                          {selectedResource.capacityUnit}
-                          {selectedResource.isIndivisible &&
-                            " (Full resource required)"}
-                          {watchBookingType === "exclusive" &&
-                            !selectedResource.isIndivisible &&
-                            " (Full capacity required for exclusive booking)"}
-                          {selectedResource.minAllocation &&
-                            ` (Min: ${selectedResource.minAllocation})`}
-                          {selectedResource.maxAllocation &&
-                            ` (Max: ${selectedResource.maxAllocation})`}
-                        </>
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Advanced Options */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              {/* Resource Selection */}
+              <div className="space-y-4">
                 <h3 className="font-medium text-muted-foreground text-sm">
-                  Advanced Options
+                  Resource
                 </h3>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-                  className="h-auto p-1 text-muted-foreground text-xs hover:text-foreground"
-                >
-                  {showAdvancedOptions ? "Hide" : "Show"}
-                  {showAdvancedOptions ? (
-                    <ChevronUp className="ml-1 h-3 w-3" />
-                  ) : (
-                    <ChevronDown className="ml-1 h-3 w-3" />
+                <FormField
+                  control={form.control}
+                  name="resourceId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Select Resource</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a resource to book" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {resources
+                            .filter((resource) => resource.status !== "offline") // Hide offline resources
+                            .map((resource) => (
+                              <SelectItem
+                                key={resource.id}
+                                value={resource.id}
+                                disabled={
+                                  !resource.isActive ||
+                                  resource.status !== "available"
+                                } // Disable if not active or not available
+                                className={
+                                  !resource.isActive ||
+                                  resource.status !== "available"
+                                    ? "text-muted-foreground"
+                                    : ""
+                                }
+                              >
+                                {resource.name} ({resource.type}) -{" "}
+                                {resource.totalCapacity} {resource.capacityUnit}
+                                {!resource.isActive && " - DISABLED"}
+                                {resource.isActive &&
+                                  resource.status !== "available" &&
+                                  ` - ${resource.status.toUpperCase()}`}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </Button>
+                />
+
+                {/* Resource Availability Progress Bar */}
+                {selectedResource && availableCapacity !== null && (
+                  <div className="space-y-2">
+                    <div className="text-sm text-muted-foreground">
+                      bookable resource ({availableCapacity}/
+                      {selectedResource.totalCapacity}
+                      {selectedResource.capacityUnit})
+                    </div>
+                    <Progress
+                      value={
+                        ((selectedResource.totalCapacity - availableCapacity) /
+                          selectedResource.totalCapacity) *
+                        100
+                      }
+                      className="h-2"
+                    />
+                  </div>
+                )}
+
+                {/* Limit Validation Warnings */}
+                {limitValidation && !limitValidation.valid && (
+                  <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-sm">
+                    <div className="mb-2 font-medium text-orange-900">
+                      ⚠️ Limit Violations
+                    </div>
+                    <div className="space-y-1">
+                      {limitValidation.violations.map((violation, index) => (
+                        <div key={index} className="text-orange-800 text-xs">
+                          • {violation}
+                        </div>
+                      ))}
+                    </div>
+                    {limitValidation.usageStats && (
+                      <div className="mt-2 border-orange-200 border-t pt-2">
+                        <div className="font-medium text-orange-900 text-xs">
+                          Current Usage:
+                        </div>
+                        <div className="mt-1 space-y-1 text-orange-700 text-xs">
+                          {limitValidation.usageStats.dailyHours && (
+                            <div>
+                              Today: {limitValidation.usageStats.dailyHours}h
+                            </div>
+                          )}
+                          {limitValidation.usageStats.weeklyHours && (
+                            <div>
+                              This week:{" "}
+                              {limitValidation.usageStats.weeklyHours}h
+                            </div>
+                          )}
+                          {limitValidation.usageStats.monthlyHours && (
+                            <div>
+                              This month:{" "}
+                              {limitValidation.usageStats.monthlyHours}h
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {showAdvancedOptions && (
+
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-muted-foreground text-sm">
+                  Booking Details
+                </h3>
+
+                <div>
+                  <label className="font-medium text-sm">Usage Type</label>
+                  <Select
+                    value={selectedPreset}
+                    onValueChange={(value) => {
+                      setSelectedPreset(value);
+                      setIsCustomMode(value === "custom");
+                    }}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {USAGE_PRESETS.map((preset) => (
+                        <SelectItem key={preset.value} value={preset.value}>
+                          {preset.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedPreset === "custom" ? (
+                  // Custom Mode - Show input fields
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Title</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="e.g., ML Training Job"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Brief description of the booking purpose"
+                              className="resize-none"
+                              rows={2}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                ) : (
+                  // Preset Mode - Show preview
+                  <div className="rounded-md bg-muted p-3 text-sm">
+                    <div className="font-medium">
+                      {
+                        USAGE_PRESETS.find((p) => p.value === selectedPreset)
+                          ?.title
+                      }
+                    </div>
+                    <div className="mt-1 text-muted-foreground">
+                      {
+                        USAGE_PRESETS.find((p) => p.value === selectedPreset)
+                          ?.description
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Time Selection */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-muted-foreground text-sm">
+                  Schedule
+                </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="bookingType"
+                    name="startTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Booking Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          disabled={selectedResource?.isIndivisible}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="shared">Shared</SelectItem>
-                            <SelectItem value="exclusive">Exclusive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          {watchBookingType === "exclusive"
-                            ? "No other bookings allowed during this time"
-                            : "Other bookings may share this resource"}
-                          {selectedResource?.isIndivisible &&
-                            " (Required for this resource)"}
-                        </FormDescription>
+                        <FormLabel>Start Time</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -730,45 +604,192 @@ export function CreateBookingDialog({
 
                   <FormField
                     control={form.control}
-                    name="priority"
+                    name="endTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Priority Level</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="normal">Normal</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="critical">Critical</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <FormLabel>End Time</FormLabel>
+                        <FormControl>
+                          <Input type="datetime-local" {...field} />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-              )}
-            </div>
 
-            {/* Limit Validation Success */}
-            {limitValidation?.valid && selectionDuration && (
-              <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm">
-                <div className="mb-1 font-medium text-green-900">
-                  ✓ All Limits Satisfied
-                </div>
-                <div className="text-green-800 text-xs">
-                  This booking complies with all your resource usage limits.
-                </div>
+                {/* Duration Display */}
+                {selectionDuration && (
+                  <div className="rounded-md bg-muted p-3 text-sm">
+                    <div className="font-medium text-muted-foreground">
+                      Last for {selectionDuration}
+                      <span className="text-muted-foreground text-xs ml-2">
+                        • {startTimeFromNow}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Booking Configuration */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-muted-foreground text-sm">
+                  Configuration
+                </h3>
+                <FormField
+                  control={form.control}
+                  name="requestedQuantity"
+                  render={({ field }) => (
+                    <FormItem
+                      className={
+                        watchBookingType === "exclusive" ? "opacity-60" : ""
+                      }
+                    >
+                      <FormLabel>Quantity</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          max={
+                            availableCapacity !== null
+                              ? Math.min(
+                                  availableCapacity,
+                                  selectedResource?.totalCapacity ||
+                                    Number.POSITIVE_INFINITY
+                                )
+                              : selectedResource?.totalCapacity || undefined
+                          }
+                          disabled={
+                            selectedResource?.isIndivisible ||
+                            (watchBookingType === "exclusive" &&
+                              !selectedResource?.isIndivisible)
+                          }
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(Number.parseInt(e.target.value) || 1)
+                          }
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {selectedResource && (
+                          <>
+                            {selectedResource.capacityUnit}
+                            {selectedResource.isIndivisible &&
+                              " (Full resource required)"}
+                            {watchBookingType === "exclusive" &&
+                              !selectedResource.isIndivisible &&
+                              " (Full capacity required for exclusive booking)"}
+                            {selectedResource.minAllocation &&
+                              ` (Min: ${selectedResource.minAllocation})`}
+                            {selectedResource.maxAllocation &&
+                              ` (Max: ${selectedResource.maxAllocation})`}
+                          </>
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Advanced Options */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-muted-foreground text-sm">
+                    Advanced Options
+                  </h3>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+                    className="h-auto p-1 text-muted-foreground text-xs hover:text-foreground"
+                  >
+                    {showAdvancedOptions ? "Hide" : "Show"}
+                    {showAdvancedOptions ? (
+                      <ChevronUp className="ml-1 h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+                {showAdvancedOptions && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="bookingType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Booking Type</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                            disabled={selectedResource?.isIndivisible}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="shared">Shared</SelectItem>
+                              <SelectItem value="exclusive">
+                                Exclusive
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            {watchBookingType === "exclusive"
+                              ? "No other bookings allowed during this time"
+                              : "Other bookings may share this resource"}
+                            {selectedResource?.isIndivisible &&
+                              " (Required for this resource)"}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="priority"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Priority Level</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="low">Low</SelectItem>
+                              <SelectItem value="normal">Normal</SelectItem>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="critical">Critical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Limit Validation Success */}
+              {limitValidation?.valid && selectionDuration && (
+                <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm">
+                  <div className="mb-1 font-medium text-green-900">
+                    ✓ All Limits Satisfied
+                  </div>
+                  <div className="text-green-800 text-xs">
+                    This booking complies with all your resource usage limits.
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="flex-shrink-0 mt-4">
