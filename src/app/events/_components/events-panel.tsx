@@ -1,13 +1,8 @@
 "use client";
 
-import { api } from "@/trpc/react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { AvatarStack } from "@/components/ui/avatar-stack";
-import { CreateEventDialog } from "./create-event-dialog";
-import { useState } from "react";
-import { format } from "date-fns";
-import { Calendar, Users, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
 	Table,
 	TableBody,
@@ -16,6 +11,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { api } from "@/trpc/react";
+import { format } from "date-fns";
+import { Calendar, Clock, Users } from "lucide-react";
+import { useState } from "react";
+import { CreateEventDialog } from "./create-event-dialog";
 
 export function EventsPanel() {
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -74,27 +74,25 @@ export function EventsPanel() {
 		? [...events].sort((a, b) => {
 				const userInA = isParticipating(a.id);
 				const userInB = isParticipating(b.id);
-				
+
 				if (userInA && !userInB) return -1;
 				if (!userInA && userInB) return 1;
-				
+
 				// If both have same participation status, sort by deadline
 				return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-		  })
+			})
 		: [];
 
 	return (
 		<div className="space-y-6">
-			<div className="flex justify-between items-center">
+			<div className="flex items-center justify-between">
 				<div className="space-y-1">
 					<h2 className="font-semibold text-2xl">All Events</h2>
-					<p className="text-sm text-muted-foreground">
+					<p className="text-muted-foreground text-sm">
 						{events?.length ?? 0} total events
 					</p>
 				</div>
-				<Button onClick={() => setCreateDialogOpen(true)}>
-					Create Event
-				</Button>
+				<Button onClick={() => setCreateDialogOpen(true)}>Create Event</Button>
 			</div>
 
 			{events && events.length > 0 ? (
@@ -113,11 +111,13 @@ export function EventsPanel() {
 						{sortedEvents.map((event) => {
 							const participating = isParticipating(event.id);
 							const isExpired = new Date(event.deadline) < new Date();
-							
+
 							return (
-								<TableRow 
+								<TableRow
 									key={event.id}
-									className={participating ? "bg-blue-50 dark:bg-blue-950/20" : ""}
+									className={
+										participating ? "bg-blue-50 dark:bg-blue-950/20" : ""
+									}
 								>
 									<TableCell className="font-medium">
 										<div className="space-y-1">
@@ -130,8 +130,8 @@ export function EventsPanel() {
 												)}
 											</div>
 											{event.description && (
-												<p className="text-muted-foreground text-xs line-clamp-2 max-w-[280px]">
-													{event.description.split('\n')[0]}
+												<p className="line-clamp-2 max-w-[280px] text-muted-foreground text-xs">
+													{event.description.split("\n")[0]}
 												</p>
 											)}
 										</div>
@@ -139,19 +139,24 @@ export function EventsPanel() {
 									<TableCell>
 										<div className="flex items-center gap-1 text-sm">
 											<Calendar className="h-3 w-3" />
-											<span>{format(event.deadline, "MMM d, yyyy h:mm a")}</span>
+											<span>
+												{format(event.deadline, "MMM d, yyyy h:mm a")}
+											</span>
 										</div>
 									</TableCell>
 									<TableCell>
 										<Badge variant={getDeadlineColor(event.deadline)}>
-											<Clock className="h-3 w-3 mr-1" />
+											<Clock className="mr-1 h-3 w-3" />
 											{getTimeUntilDeadline(event.deadline)}
 										</Badge>
 									</TableCell>
 									<TableCell>
 										<div className="flex items-center gap-2">
-											<AvatarStack participants={event.participants} maxVisible={3} />
-											<span className="text-sm text-muted-foreground">
+											<AvatarStack
+												participants={event.participants}
+												maxVisible={3}
+											/>
+											<span className="text-muted-foreground text-sm">
 												{event.participantCount}
 											</span>
 										</div>
@@ -166,7 +171,11 @@ export function EventsPanel() {
 											variant={participating ? "secondary" : "default"}
 											size="sm"
 											onClick={() => handleJoinLeave(event.id, participating)}
-											disabled={joinMutation.isPending || leaveMutation.isPending || isExpired}
+											disabled={
+												joinMutation.isPending ||
+												leaveMutation.isPending ||
+												isExpired
+											}
 										>
 											{participating ? "Leave" : "Join"}
 										</Button>
@@ -177,7 +186,7 @@ export function EventsPanel() {
 					</TableBody>
 				</Table>
 			) : (
-				<div className="text-center py-8">
+				<div className="py-8 text-center">
 					<p className="text-muted-foreground">No events available yet.</p>
 				</div>
 			)}

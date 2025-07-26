@@ -27,7 +27,7 @@ export function AvatarStack({
 
 	const sizeClasses = {
 		sm: "h-6 w-6",
-		md: "h-8 w-8", 
+		md: "h-8 w-8",
 		lg: "h-10 w-10",
 	};
 
@@ -43,7 +43,7 @@ export function AvatarStack({
 
 	if (participants.length === 0) {
 		return (
-			<div className="flex items-center gap-1 text-sm text-muted-foreground">
+			<div className="flex items-center gap-1 text-muted-foreground text-sm">
 				0 participants
 			</div>
 		);
@@ -53,7 +53,7 @@ export function AvatarStack({
 		<div className="flex items-center gap-2">
 			<div
 				className={cn(
-					"flex -space-x-2 *:ring-2 *:ring-background *:grayscale",
+					"-space-x-2 flex *:ring-2 *:ring-background *:grayscale",
 					className,
 				)}
 			>
@@ -70,13 +70,13 @@ export function AvatarStack({
 				))}
 				{remainingCount > 0 && (
 					<Avatar className={sizeClasses[size]}>
-						<AvatarFallback className="text-xs bg-muted">
+						<AvatarFallback className="bg-muted text-xs">
 							+{remainingCount}
 						</AvatarFallback>
 					</Avatar>
 				)}
 			</div>
-			<span className="text-sm text-muted-foreground">
+			<span className="text-muted-foreground text-sm">
 				{participants.length} participant{participants.length !== 1 ? "s" : ""}
 			</span>
 		</div>

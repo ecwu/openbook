@@ -44,26 +44,25 @@ export default async function Home() {
 						</div>
 
 						<div className="grid w-full max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-							<Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
+							<Card className="relative overflow-hidden transition-shadow hover:shadow-lg">
 								<CardHeader className="pb-4">
 									<div className="flex items-center gap-3">
 										<div className="rounded-lg bg-primary/10 p-2">
 											<Calendar className="h-6 w-6 text-primary" />
 										</div>
-										<CardTitle className="text-xl">
-											Book Resources
-										</CardTitle>
+										<CardTitle className="text-xl">Book Resources</CardTitle>
 									</div>
 								</CardHeader>
 								<CardContent>
 									<CardDescription className="text-base">
-										Reserve GPUs, servers, and computing resources for your projects. 
-										Schedule time slots and manage your bookings with an intuitive calendar interface.
+										Reserve GPUs, servers, and computing resources for your
+										projects. Schedule time slots and manage your bookings with
+										an intuitive calendar interface.
 									</CardDescription>
 								</CardContent>
 							</Card>
 
-							<Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
+							<Card className="relative overflow-hidden transition-shadow hover:shadow-lg">
 								<CardHeader className="pb-4">
 									<div className="flex items-center gap-3">
 										<div className="rounded-lg bg-primary/10 p-2">
@@ -74,27 +73,27 @@ export default async function Home() {
 								</CardHeader>
 								<CardContent>
 									<CardDescription className="text-base">
-										Explore available computing infrastructure, check capacity, 
-										and find the perfect resources for your research or development needs.
+										Explore available computing infrastructure, check capacity,
+										and find the perfect resources for your research or
+										development needs.
 									</CardDescription>
 								</CardContent>
 							</Card>
 
-							<Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
+							<Card className="relative overflow-hidden transition-shadow hover:shadow-lg">
 								<CardHeader className="pb-4">
 									<div className="flex items-center gap-3">
 										<div className="rounded-lg bg-primary/10 p-2">
 											<Users className="h-6 w-6 text-primary" />
 										</div>
-										<CardTitle className="text-xl">
-											Manage Groups
-										</CardTitle>
+										<CardTitle className="text-xl">Manage Groups</CardTitle>
 									</div>
 								</CardHeader>
 								<CardContent>
 									<CardDescription className="text-base">
-										Collaborate with your team by creating groups, sharing resources, 
-										and managing access permissions for different projects and users.
+										Collaborate with your team by creating groups, sharing
+										resources, and managing access permissions for different
+										projects and users.
 									</CardDescription>
 								</CardContent>
 							</Card>

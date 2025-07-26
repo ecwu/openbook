@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Server, Settings, Shield, Users, Calendar } from "lucide-react";
+import { Calendar, Server, Settings, Shield, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 

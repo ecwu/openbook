@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { api } from "@/trpc/react";
+import { AvatarStack } from "@/components/ui/avatar-stack";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,9 +11,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { AvatarStack } from "@/components/ui/avatar-stack";
+import { api } from "@/trpc/react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { LiveCountdown } from "./live-countdown";
 
 interface UpcomingEventsProps {
@@ -22,7 +22,11 @@ interface UpcomingEventsProps {
 }
 
 export function UpcomingEvents({ isLoggedIn = false }: UpcomingEventsProps) {
-	const { data: upcomingEvents, isLoading, refetch } = api.events.getUpcoming.useQuery();
+	const {
+		data: upcomingEvents,
+		isLoading,
+		refetch,
+	} = api.events.getUpcoming.useQuery();
 	const { data: myEvents } = api.events.getMyEvents.useQuery(undefined, {
 		enabled: isLoggedIn,
 	});
@@ -79,7 +83,7 @@ export function UpcomingEvents({ isLoggedIn = false }: UpcomingEventsProps) {
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<h2 className="font-semibold text-2xl">Upcoming Deadlines</h2>
-					<Link href="/events" className="text-sm text-primary hover:underline">
+					<Link href="/events" className="text-primary text-sm hover:underline">
 						View all
 					</Link>
 				</div>
@@ -96,7 +100,10 @@ export function UpcomingEvents({ isLoggedIn = false }: UpcomingEventsProps) {
 						</TableHeader>
 						<TableBody>
 							<TableRow>
-								<TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+								<TableCell
+									colSpan={5}
+									className="py-8 text-center text-muted-foreground"
+								>
 									Loading upcoming events...
 								</TableCell>
 							</TableRow>
@@ -112,7 +119,7 @@ export function UpcomingEvents({ isLoggedIn = false }: UpcomingEventsProps) {
 			<div className="space-y-4">
 				<div className="flex items-center justify-between">
 					<h2 className="font-semibold text-2xl">Upcoming Deadlines</h2>
-					<Link href="/events" className="text-sm text-primary hover:underline">
+					<Link href="/events" className="text-primary text-sm hover:underline">
 						View all
 					</Link>
 				</div>
@@ -129,8 +136,12 @@ export function UpcomingEvents({ isLoggedIn = false }: UpcomingEventsProps) {
 						</TableHeader>
 						<TableBody>
 							<TableRow>
-								<TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-									No upcoming events. Create one to track deadlines and see who's working on them.
+								<TableCell
+									colSpan={5}
+									className="py-8 text-center text-muted-foreground"
+								>
+									No upcoming events. Create one to track deadlines and see
+									who's working on them.
 								</TableCell>
 							</TableRow>
 						</TableBody>
@@ -144,7 +155,7 @@ export function UpcomingEvents({ isLoggedIn = false }: UpcomingEventsProps) {
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<h2 className="font-semibold text-2xl">Upcoming Deadlines</h2>
-				<Link href="/events" className="text-sm text-primary hover:underline">
+				<Link href="/events" className="text-primary text-sm hover:underline">
 					View all
 				</Link>
 			</div>
@@ -170,12 +181,17 @@ export function UpcomingEvents({ isLoggedIn = false }: UpcomingEventsProps) {
 									<LiveCountdown deadline={event.deadline} />
 								</TableCell>
 								<TableCell>
-									<AvatarStack participants={event.participants} maxVisible={3} />
+									<AvatarStack
+										participants={event.participants}
+										maxVisible={3}
+									/>
 								</TableCell>
 								{isLoggedIn && (
 									<TableCell>
 										<Button
-											variant={isParticipating(event.id) ? "secondary" : "default"}
+											variant={
+												isParticipating(event.id) ? "secondary" : "default"
+											}
 											size="sm"
 											onClick={() =>
 												handleJoinLeave(event.id, isParticipating(event.id))

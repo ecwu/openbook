@@ -926,7 +926,7 @@ export const bookingsRouter = createTRPCRouter({
 			let filteredBookings = calendarBookings;
 			if (input.resourceType) {
 				filteredBookings = calendarBookings.filter(
-					booking => booking.resource.type === input.resourceType
+					(booking) => booking.resource.type === input.resourceType,
 				);
 			}
 

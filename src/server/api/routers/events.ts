@@ -1,10 +1,10 @@
-import { z } from "zod";
-import { count, desc, eq, sql, and } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import yaml from "js-yaml";
+import { z } from "zod";
 
 import {
-	createTRPCRouter,
 	adminProcedure,
+	createTRPCRouter,
 	protectedProcedure,
 	publicProcedure,
 } from "@/server/api/trpc";
@@ -220,112 +220,120 @@ export const eventsRouter = createTRPCRouter({
 		}),
 
 	// Admin: Batch import conferences from AI Deadlines
-	batchImportConferences: adminProcedure
-		.mutation(async ({ ctx }) => {
-			try {
-				// Fetch YAML data from the conferences URL
-				const response = await fetch('https://raw.githubusercontent.com/huggingface/ai-deadlines/refs/heads/main/src/data/conferences.yml');
-				if (!response.ok) {
-					throw new Error(`Failed to fetch conferences: ${response.statusText}`);
+	batchImportConferences: adminProcedure.mutation(async ({ ctx }) => {
+		try {
+			// Fetch YAML data from the conferences URL
+			const response = await fetch(
+				"https://raw.githubusercontent.com/huggingface/ai-deadlines/refs/heads/main/src/data/conferences.yml",
+			);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch conferences: ${response.statusText}`);
+			}
+
+			const yamlText = await response.text();
+			const conferences = yaml.load(yamlText) as Array<{
+				title: string;
+				year: number;
+				id: string;
+				full_name: string;
+				link: string;
+				deadline: string;
+				abstract_deadline?: string;
+				timezone: string;
+				date: string;
+				tags?: string[];
+				country?: string;
+				rankings?: string;
+				venue?: string;
+				hindex?: number;
+				note?: string;
+			}>;
+
+			// Filter for future events only
+			const now = new Date();
+			const futureConferences = conferences.filter((conf) => {
+				// Parse deadline considering timezone
+				let deadline = new Date(conf.deadline);
+
+				// If timezone is specified, adjust the deadline
+				if (conf.timezone) {
+					// Handle UTC offsets (e.g., "UTC-12", "UTC+8")
+					const timezoneMatch = conf.timezone.match(/UTC([+-]\d+)/);
+					if (timezoneMatch?.[1]) {
+						const offsetHours = Number.parseInt(timezoneMatch[1]);
+						// Adjust deadline by timezone offset
+						deadline = new Date(
+							deadline.getTime() - offsetHours * 60 * 60 * 1000,
+						);
+					}
 				}
 
-				const yamlText = await response.text();
-				const conferences = yaml.load(yamlText) as Array<{
-					title: string;
-					year: number;
-					id: string;
-					full_name: string;
-					link: string;
-					deadline: string;
-					abstract_deadline?: string;
-					timezone: string;
-					date: string;
-					tags?: string[];
-					country?: string;
-					rankings?: string;
-					venue?: string;
-					hindex?: number;
-					note?: string;
-				}>;
+				return deadline > now;
+			});
 
-				// Filter for future events only
-				const now = new Date();
-				const futureConferences = conferences.filter(conf => {
-					// Parse deadline considering timezone
-					let deadline = new Date(conf.deadline);
-					
-					// If timezone is specified, adjust the deadline
-					if (conf.timezone) {
-						// Handle UTC offsets (e.g., "UTC-12", "UTC+8")
-						const timezoneMatch = conf.timezone.match(/UTC([+-]\d+)/);
-						if (timezoneMatch) {
-							const offsetHours = parseInt(timezoneMatch[1]);
-							// Adjust deadline by timezone offset
-							deadline = new Date(deadline.getTime() - (offsetHours * 60 * 60 * 1000));
-						}
+			// Create events in batch
+			const eventsToCreate = futureConferences.map((conf) => {
+				// Parse deadline with timezone consideration
+				let deadline = new Date(conf.deadline);
+
+				// If timezone is specified, adjust the deadline
+				if (conf.timezone) {
+					// Handle UTC offsets (e.g., "UTC-12", "UTC+8")
+					const timezoneMatch = conf.timezone.match(/UTC([+-]\d+)/);
+					if (timezoneMatch?.[1]) {
+						const offsetHours = Number.parseInt(timezoneMatch[1]);
+						// Adjust deadline by timezone offset
+						deadline = new Date(
+							deadline.getTime() - offsetHours * 60 * 60 * 1000,
+						);
 					}
-					
-					return deadline > now;
-				});
-
-				// Create events in batch
-				const eventsToCreate = futureConferences.map(conf => {
-					// Parse deadline with timezone consideration
-					let deadline = new Date(conf.deadline);
-					
-					// If timezone is specified, adjust the deadline
-					if (conf.timezone) {
-						// Handle UTC offsets (e.g., "UTC-12", "UTC+8")
-						const timezoneMatch = conf.timezone.match(/UTC([+-]\d+)/);
-						if (timezoneMatch) {
-							const offsetHours = parseInt(timezoneMatch[1]);
-							// Adjust deadline by timezone offset
-							deadline = new Date(deadline.getTime() - (offsetHours * 60 * 60 * 1000));
-						}
-					}
-
-					return {
-						name: `${conf.title} ${conf.year}`,
-						description: `${conf.full_name}\n\nDeadline: ${conf.deadline} (${conf.timezone})\nVenue: ${conf.venue || conf.country}\nLink: ${conf.link}\n${conf.note ? `\nNote: ${conf.note.replace(/<[^>]*>/g, '')}` : ''}`,
-						deadline,
-						createdById: ctx.session.user.id,
-					};
-				});
-
-				const createdEvents = await ctx.db
-					.insert(events)
-					.values(eventsToCreate)
-					.returning();
+				}
 
 				return {
-					success: true,
-					imported: createdEvents.length,
-					total: conferences.length,
-					futureEvents: futureConferences.length,
+					name: `${conf.title} ${conf.year}`,
+					description: `${conf.full_name}\n\nDeadline: ${conf.deadline} (${conf.timezone})\nVenue: ${conf.venue || conf.country}\nLink: ${conf.link}\n${conf.note ? `\nNote: ${conf.note.replace(/<[^>]*>/g, "")}` : ""}`,
+					deadline,
+					createdById: ctx.session.user.id,
 				};
-			} catch (error) {
-				console.error('Error importing conferences:', error);
-				throw new Error(`Failed to import conferences: ${error instanceof Error ? error.message : 'Unknown error'}`);
-			}
-		}),
+			});
+
+			const createdEvents = await ctx.db
+				.insert(events)
+				.values(eventsToCreate)
+				.returning();
+
+			return {
+				success: true,
+				imported: createdEvents.length,
+				total: conferences.length,
+				futureEvents: futureConferences.length,
+			};
+		} catch (error) {
+			console.error("Error importing conferences:", error);
+			throw new Error(
+				`Failed to import conferences: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	}),
 
 	// Admin: Batch delete all events
-	batchDeleteAllEvents: adminProcedure
-		.mutation(async ({ ctx }) => {
-			try {
-				// First delete all event participants
-				await ctx.db.delete(eventParticipants);
-				
-				// Then delete all events
-				const deletedEvents = await ctx.db.delete(events).returning();
+	batchDeleteAllEvents: adminProcedure.mutation(async ({ ctx }) => {
+		try {
+			// First delete all event participants
+			await ctx.db.delete(eventParticipants);
 
-				return {
-					success: true,
-					deleted: deletedEvents.length,
-				};
-			} catch (error) {
-				console.error('Error deleting all events:', error);
-				throw new Error(`Failed to delete events: ${error instanceof Error ? error.message : 'Unknown error'}`);
-			}
-		}),
+			// Then delete all events
+			const deletedEvents = await ctx.db.delete(events).returning();
+
+			return {
+				success: true,
+				deleted: deletedEvents.length,
+			};
+		} catch (error) {
+			console.error("Error deleting all events:", error);
+			throw new Error(
+				`Failed to delete events: ${error instanceof Error ? error.message : "Unknown error"}`,
+			);
+		}
+	}),
 });

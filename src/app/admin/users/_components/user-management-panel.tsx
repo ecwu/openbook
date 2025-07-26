@@ -20,7 +20,14 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { api } from "@/trpc/react";
-import { ChevronDown, ChevronRight, Edit, Search, Shield, User } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronRight,
+	Edit,
+	Search,
+	Shield,
+	User,
+} from "lucide-react";
 import { useState } from "react";
 import { EditUserDialog } from "./edit-user-dialog";
 
@@ -74,7 +81,7 @@ export function UserManagementPanel() {
 	const renderGroups = (user: any) => {
 		const groups = user.groups || [];
 		const isExpanded = expandedGroups.has(user.id);
-		
+
 		if (groups.length === 0) {
 			return <span className="text-muted-foreground text-sm">No groups</span>;
 		}
@@ -125,7 +132,7 @@ export function UserManagementPanel() {
 				</div>
 				<div className="flex flex-col gap-1">
 					{groups.map((group: any) => (
-						<Badge key={group.id} variant="outline" className="text-xs w-fit">
+						<Badge key={group.id} variant="outline" className="w-fit text-xs">
 							{group.name}
 						</Badge>
 					))}
@@ -146,7 +153,7 @@ export function UserManagementPanel() {
 				{/* Filters */}
 				<div className="flex gap-4">
 					<div className="relative flex-1">
-						<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+						<Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 text-muted-foreground" />
 						<Input
 							placeholder="Search users by name or email..."
 							value={search}
@@ -157,7 +164,9 @@ export function UserManagementPanel() {
 					<Select
 						value={roleFilter || "all"}
 						onValueChange={(value) =>
-							setRoleFilter(value === "all" ? undefined : (value as "admin" | "user"))
+							setRoleFilter(
+								value === "all" ? undefined : (value as "admin" | "user"),
+							)
 						}
 					>
 						<SelectTrigger className="w-40">
@@ -187,13 +196,13 @@ export function UserManagementPanel() {
 						<TableBody>
 							{isLoading ? (
 								<TableRow>
-									<TableCell colSpan={6} className="text-center py-8">
+									<TableCell colSpan={6} className="py-8 text-center">
 										Loading users...
 									</TableCell>
 								</TableRow>
 							) : users?.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={6} className="text-center py-8">
+									<TableCell colSpan={6} className="py-8 text-center">
 										No users found
 									</TableCell>
 								</TableRow>

@@ -16,9 +16,9 @@ export function ThemeToggle() {
 	};
 
 	return (
-		<Button 
-			variant="outline" 
-			size="icon" 
+		<Button
+			variant="outline"
+			size="icon"
 			onClick={toggleTheme}
 			className="transition-all duration-150 hover:scale-105 active:scale-95"
 		>

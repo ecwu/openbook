@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, sqliteTableCreator, primaryKey } from "drizzle-orm/sqlite-core";
+import { index, primaryKey, sqliteTableCreator } from "drizzle-orm/sqlite-core";
 import type { AdapterAccount } from "next-auth/adapters";
 
 /**

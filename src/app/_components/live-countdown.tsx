@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
 
 interface LiveCountdownProps {
 	deadline: Date;
@@ -9,7 +9,9 @@ interface LiveCountdownProps {
 
 export function LiveCountdown({ deadline }: LiveCountdownProps) {
 	const [timeLeft, setTimeLeft] = useState("");
-	const [variant, setVariant] = useState<"default" | "secondary" | "destructive">("default");
+	const [variant, setVariant] = useState<
+		"default" | "secondary" | "destructive"
+	>("default");
 
 	useEffect(() => {
 		const updateCountdown = () => {
@@ -23,7 +25,9 @@ export function LiveCountdown({ deadline }: LiveCountdownProps) {
 			}
 
 			const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-			const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+			const hours = Math.floor(
+				(diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
+			);
 			const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 			const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 

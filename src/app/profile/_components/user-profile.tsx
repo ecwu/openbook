@@ -214,11 +214,9 @@ export function UserProfile() {
 									className="flex items-center gap-2 rounded-md border px-3 py-2"
 									title={group.description || undefined}
 								>
-									<span className="text-sm font-medium">{group.name}</span>
+									<span className="font-medium text-sm">{group.name}</span>
 									<Badge
-										variant={
-											group.role === "manager" ? "default" : "secondary"
-										}
+										variant={group.role === "manager" ? "default" : "secondary"}
 										className="text-xs"
 									>
 										{group.role}

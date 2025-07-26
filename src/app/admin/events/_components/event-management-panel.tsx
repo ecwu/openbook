@@ -1,7 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -12,9 +10,17 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
-import { Download, Calendar, Loader2, Trash2 } from "lucide-react";
+import { Calendar, Download, Loader2, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 export function EventManagementPanel() {
@@ -96,14 +102,21 @@ export function EventManagementPanel() {
 						<div className="rounded-lg bg-muted p-4">
 							<h4 className="font-medium text-sm">What this does:</h4>
 							<ul className="mt-2 space-y-1 text-muted-foreground text-sm">
-								<li>• Fetches conference data from AI Deadlines GitHub repository</li>
+								<li>
+									• Fetches conference data from AI Deadlines GitHub repository
+								</li>
 								<li>• Filters for conferences with future deadlines only</li>
-								<li>• Creates events with conference details, deadlines, and links</li>
-								<li>• Adds venue information and conference rankings where available</li>
+								<li>
+									• Creates events with conference details, deadlines, and links
+								</li>
+								<li>
+									• Adds venue information and conference rankings where
+									available
+								</li>
 							</ul>
 						</div>
-						
-						<Button 
+
+						<Button
 							onClick={handleBatchImport}
 							disabled={isImporting}
 							size="lg"
@@ -137,8 +150,10 @@ export function EventManagementPanel() {
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-4">
-						<div className="rounded-lg bg-destructive/10 p-4 border border-destructive/20">
-							<h4 className="font-medium text-sm text-destructive">⚠️ Warning:</h4>
+						<div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4">
+							<h4 className="font-medium text-destructive text-sm">
+								⚠️ Warning:
+							</h4>
 							<ul className="mt-2 space-y-1 text-destructive text-sm">
 								<li>• This action will permanently delete ALL events</li>
 								<li>• All user participations will also be removed</li>
@@ -146,8 +161,8 @@ export function EventManagementPanel() {
 								<li>• Consider backing up data before proceeding</li>
 							</ul>
 						</div>
-						
-						<Button 
+
+						<Button
 							onClick={() => setShowDeleteDialog(true)}
 							disabled={isDeleting}
 							variant="destructive"
@@ -179,16 +194,24 @@ export function EventManagementPanel() {
 				</CardHeader>
 				<CardContent>
 					<div className="space-y-2 text-sm">
-						<p><strong>Repository:</strong> huggingface/ai-deadlines</p>
-						<p><strong>URL:</strong> <a 
-							href="https://raw.githubusercontent.com/huggingface/ai-deadlines/refs/heads/main/src/data/conferences.yml" 
-							target="_blank" 
-							rel="noopener noreferrer"
-							className="text-primary hover:underline"
-						>
-							conferences.yml
-						</a></p>
-						<p><strong>Update Frequency:</strong> Community maintained, updated regularly</p>
+						<p>
+							<strong>Repository:</strong> huggingface/ai-deadlines
+						</p>
+						<p>
+							<strong>URL:</strong>{" "}
+							<a
+								href="https://raw.githubusercontent.com/huggingface/ai-deadlines/refs/heads/main/src/data/conferences.yml"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-primary hover:underline"
+							>
+								conferences.yml
+							</a>
+						</p>
+						<p>
+							<strong>Update Frequency:</strong> Community maintained, updated
+							regularly
+						</p>
 					</div>
 				</CardContent>
 			</Card>
@@ -198,13 +221,14 @@ export function EventManagementPanel() {
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete All Events?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This action will permanently delete all events and their associated participations. 
-							This cannot be undone. Are you sure you want to continue?
+							This action will permanently delete all events and their
+							associated participations. This cannot be undone. Are you sure you
+							want to continue?
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-						<AlertDialogAction 
+						<AlertDialogAction
 							onClick={handleBatchDelete}
 							disabled={isDeleting}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

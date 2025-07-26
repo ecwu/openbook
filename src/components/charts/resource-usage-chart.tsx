@@ -53,7 +53,7 @@ export function ResourceUsageChart({
 
 	return (
 		<div className={`${className} overflow-hidden`}>
-			<ChartContainer config={chartConfig} className="w-full h-full">
+			<ChartContainer config={chartConfig} className="h-full w-full">
 				<ResponsiveContainer width="100%" height="100%">
 					<AreaChart
 						data={data}

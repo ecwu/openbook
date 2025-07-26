@@ -1,10 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -25,6 +20,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/trpc/react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 const createEventSchema = z.object({
 	name: z.string().min(1, "Name is required").max(255, "Name too long"),
@@ -73,11 +73,11 @@ export function CreateEventDialog({
 
 	const onSubmit = (data: CreateEventForm) => {
 		setIsSubmitting(true);
-		
+
 		// Convert the datetime-local input to a Date object
 		// The input gives us a string like "2024-12-01T23:59"
 		const deadlineDate = new Date(data.deadline);
-		
+
 		createMutation.mutate({
 			name: data.name,
 			description: data.description,
@@ -139,10 +139,7 @@ export function CreateEventDialog({
 								<FormItem>
 									<FormLabel>Deadline</FormLabel>
 									<FormControl>
-										<Input
-											type="datetime-local"
-											{...field}
-										/>
+										<Input type="datetime-local" {...field} />
 									</FormControl>
 									<FormDescription>
 										Select the deadline date and time in your local timezone

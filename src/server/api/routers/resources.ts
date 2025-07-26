@@ -65,7 +65,9 @@ export const resourcesRouter = createTRPCRouter({
 				isActive: z.boolean().optional(),
 				limit: z.number().min(1).max(100).default(20),
 				offset: z.number().min(0).default(0),
-				sortBy: z.enum(["name", "type", "status", "createdAt"]).default("createdAt"),
+				sortBy: z
+					.enum(["name", "type", "status", "createdAt"])
+					.default("createdAt"),
 				sortOrder: z.enum(["asc", "desc"]).default("asc"),
 				// Filter by user's group access
 				onlyAccessible: z.boolean().default(false),
@@ -889,6 +891,6 @@ export const resourcesRouter = createTRPCRouter({
 			.where(eq(resources.isActive, true))
 			.orderBy(asc(resources.type));
 
-		return uniqueTypes.map(item => item.type);
+		return uniqueTypes.map((item) => item.type as string);
 	}),
 });
