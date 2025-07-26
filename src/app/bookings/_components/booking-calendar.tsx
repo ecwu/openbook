@@ -66,6 +66,7 @@ interface CalendarResource {
 export function BookingCalendar() {
 	const [currentView, setCurrentView] = useState("resourceTimeGridThreeDay");
 	const [myBookingsOnly, setMyBookingsOnly] = useState(false);
+	const [selectedResourceType, setSelectedResourceType] = useState<string | null>(null);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
 		null,
@@ -79,28 +80,26 @@ export function BookingCalendar() {
 		end: Date;
 		resourceId?: string;
 	} | null>(null);
+	const [dateRange, setDateRange] = useState(() => {
+		const now = new Date();
+		return {
+			start: new Date(now.getFullYear(), now.getMonth(), 1),
+			end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+		};
+	});
 
 	const calendarRef = useRef<FullCalendar>(null);
 
-	// Get calendar date range
-	const getCalendarDateRange = useCallback(() => {
-		const calendarApi = calendarRef.current?.getApi();
-		if (!calendarApi) {
-			const now = new Date();
-			return {
-				start: new Date(now.getFullYear(), now.getMonth(), 1),
-				end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
-			};
-		}
-
-		const view = calendarApi.view;
-		return {
-			start: view.activeStart,
-			end: view.activeEnd,
-		};
+	// Handle calendar date range changes
+	const handleDatesSet = useCallback((dateInfo: any) => {
+		setDateRange({
+			start: dateInfo.start,
+			end: dateInfo.end,
+		});
 	}, []);
 
-	const dateRange = getCalendarDateRange();
+	// Fetch resource types
+	const { data: resourceTypes = [] } = api.resources.getResourceTypes.useQuery();
 
 	// Fetch calendar events
 	const {
@@ -111,14 +110,16 @@ export function BookingCalendar() {
 		start: dateRange.start,
 		end: dateRange.end,
 		resourceId: undefined, // Show all resources in vertical view
+		resourceType: selectedResourceType || undefined,
 		myBookingsOnly,
 	});
 
-	// Fetch available resources for filter
+	// Fetch available resources for filter (filtered by type if selected)
 	const { data: resources = [] } = api.resources.list.useQuery({
 		limit: 100,
 		sortBy: "name",
 		sortOrder: "asc",
+		type: selectedResourceType || undefined,
 	});
 
 	const handleDateClick = (info: any) => {
@@ -261,6 +262,28 @@ export function BookingCalendar() {
 						</div>
 
 						<div className="flex items-center gap-2">
+							<Label htmlFor="resource-type">Resource Type:</Label>
+							<Select
+								value={selectedResourceType || "all"}
+								onValueChange={(value) => 
+									setSelectedResourceType(value === "all" ? null : value)
+								}
+							>
+								<SelectTrigger className="w-[140px]">
+									<SelectValue placeholder="All Types" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All Types</SelectItem>
+									{resourceTypes.map((type) => (
+										<SelectItem key={type} value={type}>
+											{type.toUpperCase()}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="flex items-center gap-2">
 							<Label htmlFor="my-bookings">My bookings only:</Label>
 							<Switch
 								id="my-bookings"
@@ -298,8 +321,16 @@ export function BookingCalendar() {
 					{/* Legend */}
 					<div className="flex flex-wrap items-center gap-4 text-sm">
 						<span className="text-muted-foreground">
-							All resources are displayed vertically with bookings color-coded by resource
+							{selectedResourceType 
+								? `Showing ${selectedResourceType.toUpperCase()} resources only. Bookings are color-coded by resource.`
+								: "Showing all resources. Select a resource type to filter. Bookings are color-coded by resource."
+							}
 						</span>
+						{selectedResourceType && (
+							<Badge variant="secondary" className="text-xs">
+								Filter: {selectedResourceType.toUpperCase()}
+							</Badge>
+						)}
 					</div>
 				</CardContent>
 			</Card>
@@ -335,6 +366,7 @@ export function BookingCalendar() {
 						eventDrop={handleEventDrop}
 						eventResize={handleEventResize}
 						select={handleSelect}
+						datesSet={handleDatesSet}
 						height="auto"
 						slotMinTime="00:00:00"
 						slotMaxTime="24:00:00"

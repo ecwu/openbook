@@ -873,6 +873,7 @@ export const bookingsRouter = createTRPCRouter({
 				start: z.date(),
 				end: z.date(),
 				resourceId: z.string().optional(),
+				resourceType: z.string().optional(),
 				myBookingsOnly: z.boolean().default(false),
 			}),
 		)
@@ -921,8 +922,16 @@ export const bookingsRouter = createTRPCRouter({
 				},
 			});
 
+			// Filter by resource type if specified
+			let filteredBookings = calendarBookings;
+			if (input.resourceType) {
+				filteredBookings = calendarBookings.filter(
+					booking => booking.resource.type === input.resourceType
+				);
+			}
+
 			// Transform to FullCalendar format
-			return calendarBookings.map((booking) => ({
+			return filteredBookings.map((booking) => ({
 				id: booking.id,
 				title: `${booking.title} (${booking.requestedQuantity}${booking.resource.capacityUnit})`,
 				start: booking.startTime,

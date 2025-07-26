@@ -880,4 +880,15 @@ export const resourcesRouter = createTRPCRouter({
 
 			return futureUsage;
 		}),
+
+	// Get all unique resource types
+	getResourceTypes: protectedProcedure.query(async ({ ctx }) => {
+		const uniqueTypes = await ctx.db
+			.selectDistinct({ type: resources.type })
+			.from(resources)
+			.where(eq(resources.isActive, true))
+			.orderBy(asc(resources.type));
+
+		return uniqueTypes.map(item => item.type);
+	}),
 });

@@ -82,7 +82,7 @@ export function EditUserDialog({
 	useEffect(() => {
 		if (user) {
 			form.reset({
-				name: user.name,
+				name: user.name || "",
 				role: user.role as "admin" | "user",
 				isActive: user.isActive,
 			});
