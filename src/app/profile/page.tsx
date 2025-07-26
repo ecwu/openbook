@@ -1,9 +1,9 @@
 import { auth } from "@/server/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { ResourcesPanel } from "./_components/resources-panel";
+import { UserProfile } from "./_components/user-profile";
 
-async function ResourcesPage() {
+async function ProfilePage() {
 	const session = await auth();
 
 	if (!session?.user) {
@@ -13,17 +13,17 @@ async function ResourcesPage() {
 	return (
 		<div className="container mx-auto py-8">
 			<div className="mb-8">
-				<h1 className="font-bold text-3xl">Resources</h1>
+				<h1 className="font-bold text-3xl">Profile</h1>
 				<p className="mt-2 text-muted-foreground">
-					Browse available computing resources and their current usage
+					Manage your profile information and account settings
 				</p>
 			</div>
 
-			<Suspense fallback={<div>Loading resources...</div>}>
-				<ResourcesPanel />
+			<Suspense fallback={<div>Loading profile...</div>}>
+				<UserProfile />
 			</Suspense>
 		</div>
 	);
 }
 
-export default ResourcesPage;
+export default ProfilePage;

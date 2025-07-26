@@ -50,6 +50,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 							</Link>
 						</Button>
 						<Button asChild variant="ghost" className="justify-start">
+							<Link href="/admin/users" className="flex items-center gap-2">
+								<Users className="h-4 w-4" />
+								Users
+							</Link>
+						</Button>
+						<Button asChild variant="ghost" className="justify-start">
 							<Link href="/admin/limits" className="flex items-center gap-2">
 								<Settings className="h-4 w-4" />
 								Limits

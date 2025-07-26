@@ -1,12 +1,19 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { api } from "@/trpc/react";
 import { ResourceUsageChart } from "@/components/charts/resource-usage-chart";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/trpc/react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useState } from "react";
 
 interface ResourceWithUsage {
 	id: string;
@@ -23,7 +30,10 @@ interface ResourceWithUsage {
 	isActive: boolean;
 }
 
-function ResourceCard({ resource, usageData }: { resource: ResourceWithUsage; usageData: any[] }) {
+function ResourceCard({
+	resource,
+	usageData,
+}: { resource: ResourceWithUsage; usageData: any[] }) {
 	const getStatusColor = (status: string) => {
 		switch (status) {
 			case "available":
@@ -64,7 +74,9 @@ function ResourceCard({ resource, usageData }: { resource: ResourceWithUsage; us
 					</div>
 				</div>
 				{resource.description && (
-					<p className="text-sm text-muted-foreground">{resource.description}</p>
+					<p className="text-muted-foreground text-sm">
+						{resource.description}
+					</p>
 				)}
 			</CardHeader>
 			<CardContent className="space-y-4">
@@ -89,16 +101,18 @@ function ResourceCard({ resource, usageData }: { resource: ResourceWithUsage; us
 					</div>
 					<div>
 						<p className="text-muted-foreground">Utilization</p>
-						<p className={`font-medium ${getUtilizationColor(resource.utilizationPercentage)}`}>
+						<p
+							className={`font-medium ${getUtilizationColor(resource.utilizationPercentage)}`}
+						>
 							{resource.utilizationPercentage.toFixed(1)}%
 						</p>
 					</div>
 				</div>
-				
+
 				<Separator />
-				
+
 				<div className="space-y-2">
-					<h4 className="text-sm font-medium">24-Hour Usage Forecast</h4>
+					<h4 className="font-medium text-sm">24-Hour Usage Forecast</h4>
 					{usageData.length > 0 ? (
 						<ResourceUsageChart
 							data={usageData}
@@ -107,7 +121,7 @@ function ResourceCard({ resource, usageData }: { resource: ResourceWithUsage; us
 							className="h-[120px]"
 						/>
 					) : (
-						<div className="flex h-[120px] items-center justify-center text-sm text-muted-foreground">
+						<div className="flex h-[120px] items-center justify-center text-muted-foreground text-sm">
 							No usage data available
 						</div>
 					)}
@@ -148,13 +162,17 @@ function ResourcesSkeleton() {
 }
 
 export function ResourcesPanel() {
-	const { data: resources, isLoading: resourcesLoading } = api.resources.list.useQuery({
-		onlyAccessible: true,
-		limit: 100,
-		isActive: undefined, // Include both active and inactive resources
-	});
+	const [showOfflineResources, setShowOfflineResources] = useState(false);
 
-	const { data: usageData, isLoading: usageLoading } = api.resources.getNext24HourUsage.useQuery({});
+	const { data: resources, isLoading: resourcesLoading } =
+		api.resources.list.useQuery({
+			onlyAccessible: true,
+			limit: 100,
+			isActive: undefined, // Include both active and inactive resources
+		});
+
+	const { data: usageData, isLoading: usageLoading } =
+		api.resources.getNext24HourUsage.useQuery({});
 
 	if (resourcesLoading || usageLoading) {
 		return <ResourcesSkeleton />;
@@ -170,26 +188,39 @@ export function ResourcesPanel() {
 		);
 	}
 
-	// Sort resources: active + available first, then by utilization (lowest first for available resources)
-	const sortedResources = [...resources].sort((a, b) => {
+	// Separate online and offline resources
+	const onlineResources = resources.filter(
+		(resource) => resource.status !== "offline",
+	);
+	const offlineResources = resources.filter(
+		(resource) => resource.status === "offline",
+	);
+
+	// Sort online resources: active + available first, then by utilization (lowest first for available resources)
+	const sortedOnlineResources = [...onlineResources].sort((a, b) => {
 		// First, sort by active status (active resources first)
 		if (a.isActive && !b.isActive) return -1;
 		if (!a.isActive && b.isActive) return 1;
-		
+
 		// Within active resources, sort by status (available resources first)
 		if (a.isActive && b.isActive) {
 			if (a.status === "available" && b.status !== "available") return -1;
 			if (a.status !== "available" && b.status === "available") return 1;
-			
+
 			// Within same status, sort by utilization percentage (lower utilization first for available resources)
 			if (a.status === "available" && b.status === "available") {
 				return a.utilizationPercentage - b.utilizationPercentage;
 			}
 		}
-		
+
 		// For inactive resources or same-status resources, sort alphabetically by name
 		return a.name.localeCompare(b.name);
 	});
+
+	// Sort offline resources alphabetically by name
+	const sortedOfflineResources = [...offlineResources].sort((a, b) =>
+		a.name.localeCompare(b.name),
+	);
 
 	// Create a map of usage data by resource ID for quick lookup
 	const usageDataMap = new Map();
@@ -201,15 +232,52 @@ export function ResourcesPanel() {
 
 	return (
 		<div className="space-y-6">
-			<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-				{sortedResources.map((resource) => (
-					<ResourceCard
-						key={resource.id}
-						resource={resource}
-						usageData={usageDataMap.get(resource.id) || []}
-					/>
-				))}
-			</div>
+			{/* Online Resources Section */}
+			{sortedOnlineResources.length > 0 && (
+				<div className="space-y-4">
+					<h2 className="font-semibold text-xl">Available Resources</h2>
+					<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+						{sortedOnlineResources.map((resource) => (
+							<ResourceCard
+								key={resource.id}
+								resource={resource}
+								usageData={usageDataMap.get(resource.id) || []}
+							/>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Offline Resources Section */}
+			{sortedOfflineResources.length > 0 && (
+				<Collapsible
+					open={showOfflineResources}
+					onOpenChange={setShowOfflineResources}
+				>
+					<CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg p-4 text-left hover:bg-muted">
+						<div className="flex items-center gap-2">
+							<h2 className="font-semibold text-xl">Offline Resources</h2>
+							<Badge variant="secondary">{sortedOfflineResources.length}</Badge>
+						</div>
+						{showOfflineResources ? (
+							<ChevronDown className="h-4 w-4" />
+						) : (
+							<ChevronRight className="h-4 w-4" />
+						)}
+					</CollapsibleTrigger>
+					<CollapsibleContent className="space-y-4 pt-4">
+						<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+							{sortedOfflineResources.map((resource) => (
+								<ResourceCard
+									key={resource.id}
+									resource={resource}
+									usageData={usageDataMap.get(resource.id) || []}
+								/>
+							))}
+						</div>
+					</CollapsibleContent>
+				</Collapsible>
+			)}
 		</div>
 	);
 }
