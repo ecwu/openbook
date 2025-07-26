@@ -80,51 +80,110 @@ function ResourceCard({
 				)}
 			</CardHeader>
 			<CardContent className="space-y-4">
-				<div className="grid grid-cols-2 gap-4 text-sm">
-					<div>
-						<p className="text-muted-foreground">Total Capacity</p>
-						<p className="font-medium">
-							{resource.totalCapacity} {resource.capacityUnit}
-						</p>
+				{/* Mobile layout: vertical stack */}
+				<div className="flex flex-col space-y-4 lg:hidden">
+					<div className="grid grid-cols-2 gap-4 text-sm">
+						<div>
+							<p className="text-muted-foreground">Total Capacity</p>
+							<p className="font-medium">
+								{resource.totalCapacity} {resource.capacityUnit}
+							</p>
+						</div>
+						<div>
+							<p className="text-muted-foreground">Available</p>
+							<p className="font-medium">
+								{resource.availableCapacity} {resource.capacityUnit}
+							</p>
+						</div>
+						<div>
+							<p className="text-muted-foreground">Current Usage</p>
+							<p className="font-medium">
+								{resource.currentUtilization} {resource.capacityUnit}
+							</p>
+						</div>
+						<div>
+							<p className="text-muted-foreground">Utilization</p>
+							<p
+								className={`font-medium ${getUtilizationColor(resource.utilizationPercentage)}`}
+							>
+								{resource.utilizationPercentage.toFixed(1)}%
+							</p>
+						</div>
 					</div>
-					<div>
-						<p className="text-muted-foreground">Available</p>
-						<p className="font-medium">
-							{resource.availableCapacity} {resource.capacityUnit}
-						</p>
-					</div>
-					<div>
-						<p className="text-muted-foreground">Current Usage</p>
-						<p className="font-medium">
-							{resource.currentUtilization} {resource.capacityUnit}
-						</p>
-					</div>
-					<div>
-						<p className="text-muted-foreground">Utilization</p>
-						<p
-							className={`font-medium ${getUtilizationColor(resource.utilizationPercentage)}`}
-						>
-							{resource.utilizationPercentage.toFixed(1)}%
-						</p>
+
+					<Separator />
+
+					<div className="space-y-2">
+						<h4 className="font-medium text-sm">24-Hour Usage Forecast</h4>
+						{usageData.length > 0 ? (
+							<div className="h-[120px] w-full overflow-hidden">
+								<ResourceUsageChart
+									data={usageData}
+									totalCapacity={resource.totalCapacity}
+									capacityUnit={resource.capacityUnit}
+									className="h-full w-full"
+								/>
+							</div>
+						) : (
+							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-sm">
+								No usage data available
+							</div>
+						)}
 					</div>
 				</div>
 
-				<Separator />
-
-				<div className="space-y-2">
-					<h4 className="font-medium text-sm">24-Hour Usage Forecast</h4>
-					{usageData.length > 0 ? (
-						<ResourceUsageChart
-							data={usageData}
-							totalCapacity={resource.totalCapacity}
-							capacityUnit={resource.capacityUnit}
-							className="h-[120px]"
-						/>
-					) : (
-						<div className="flex h-[120px] items-center justify-center text-muted-foreground text-sm">
-							No usage data available
+				{/* Desktop layout: side by side */}
+				<div className="hidden lg:flex lg:gap-6">
+					{/* Left side: Resource info */}
+					<div className="flex-1 space-y-4">
+						<div className="grid grid-cols-2 gap-4 text-sm">
+							<div>
+								<p className="text-muted-foreground">Total Capacity</p>
+								<p className="font-medium">
+									{resource.totalCapacity} {resource.capacityUnit}
+								</p>
+							</div>
+							<div>
+								<p className="text-muted-foreground">Available</p>
+								<p className="font-medium">
+									{resource.availableCapacity} {resource.capacityUnit}
+								</p>
+							</div>
+							<div>
+								<p className="text-muted-foreground">Current Usage</p>
+								<p className="font-medium">
+									{resource.currentUtilization} {resource.capacityUnit}
+								</p>
+							</div>
+							<div>
+								<p className="text-muted-foreground">Utilization</p>
+								<p
+									className={`font-medium ${getUtilizationColor(resource.utilizationPercentage)}`}
+								>
+									{resource.utilizationPercentage.toFixed(1)}%
+								</p>
+							</div>
 						</div>
-					)}
+					</div>
+
+					{/* Right side: Chart */}
+					<div className="flex-1 space-y-2">
+						<h4 className="font-medium text-sm">24-Hour Usage Forecast</h4>
+						{usageData.length > 0 ? (
+							<div className="h-[120px] w-full overflow-hidden">
+								<ResourceUsageChart
+									data={usageData}
+									totalCapacity={resource.totalCapacity}
+									capacityUnit={resource.capacityUnit}
+									className="h-full w-full"
+								/>
+							</div>
+						) : (
+							<div className="flex h-[120px] items-center justify-center text-muted-foreground text-sm">
+								No usage data available
+							</div>
+						)}
+					</div>
 				</div>
 			</CardContent>
 		</Card>
@@ -133,7 +192,7 @@ function ResourceCard({
 
 function ResourcesSkeleton() {
 	return (
-		<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+		<div className="grid gap-6 grid-cols-1">
 			{Array.from({ length: 6 }).map((_, i) => (
 				<Card key={i}>
 					<CardHeader>
@@ -236,7 +295,7 @@ export function ResourcesPanel() {
 			{sortedOnlineResources.length > 0 && (
 				<div className="space-y-4">
 					<h2 className="font-semibold text-xl">Available Resources</h2>
-					<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+					<div className="grid gap-6 grid-cols-1">
 						{sortedOnlineResources.map((resource) => (
 							<ResourceCard
 								key={resource.id}
@@ -266,7 +325,7 @@ export function ResourcesPanel() {
 						)}
 					</CollapsibleTrigger>
 					<CollapsibleContent className="space-y-4 pt-4">
-						<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+						<div className="grid gap-6 grid-cols-1">
 							{sortedOfflineResources.map((resource) => (
 								<ResourceCard
 									key={resource.id}
