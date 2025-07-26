@@ -116,11 +116,15 @@
 }
 
 @layer base {
-	* {
+	*,
+	*::before,
+	*::after {
 		@apply border-border outline-ring/50;
+		transition: background-color 0.15s ease-out, border-color 0.15s ease-out;
 	}
 	body {
 		@apply bg-background text-foreground;
+		transition: background-color 0.15s ease-out;
 	}
 }
 
