@@ -3,6 +3,7 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
 	DialogContent,
@@ -41,6 +42,7 @@ export function DeleteResourceDialog({
 }: DeleteResourceDialogProps) {
 	const { toast } = useToast();
 	const [confirmText, setConfirmText] = useState("");
+	const [permanentDelete, setPermanentDelete] = useState(false);
 
 	// Check if resource has active bookings
 	const { data: resourceDetails } = api.resources.getById.useQuery(
@@ -48,8 +50,7 @@ export function DeleteResourceDialog({
 		{ enabled: !!resource?.id && open },
 	);
 
-	// For now, we'll simulate a delete by updating the resource to inactive
-	// In a real system, you might want a soft delete or archive functionality
+	// Soft delete (deactivate) mutation
 	const updateResource = api.resources.update.useMutation({
 		onSuccess: () => {
 			toast({
@@ -57,6 +58,28 @@ export function DeleteResourceDialog({
 				description: "Resource has been deactivated",
 			});
 			setConfirmText("");
+			setPermanentDelete(false);
+			onSuccess();
+			onOpenChange(false);
+		},
+		onError: (error) => {
+			toast({
+				title: "Error",
+				description: error.message,
+				variant: "destructive",
+			});
+		},
+	});
+
+	// Permanent delete mutation
+	const deleteResource = api.resources.delete.useMutation({
+		onSuccess: () => {
+			toast({
+				title: "Success",
+				description: "Resource has been permanently deleted",
+			});
+			setConfirmText("");
+			setPermanentDelete(false);
 			onSuccess();
 			onOpenChange(false);
 		},
@@ -72,18 +95,24 @@ export function DeleteResourceDialog({
 	const handleDelete = () => {
 		if (!resource || confirmText !== resource.name) return;
 
-		// Instead of actual deletion, we'll deactivate the resource
-		updateResource.mutate({
-			id: resource.id,
-			isActive: false,
-			status: "offline" as const,
-		});
+		if (permanentDelete) {
+			// Permanent deletion
+			deleteResource.mutate({ id: resource.id });
+		} else {
+			// Soft delete (deactivate)
+			updateResource.mutate({
+				id: resource.id,
+				isActive: false,
+				status: "offline" as const,
+			});
+		}
 	};
 
 	if (!resource) return null;
 
 	const hasActiveBookings = resource.currentUtilization > 0;
 	const isConfirmValid = confirmText === resource.name;
+	const isLoading = updateResource.isPending || deleteResource.isPending;
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,11 +120,14 @@ export function DeleteResourceDialog({
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2">
 						<Trash2 className="h-5 w-5 text-destructive" />
-						Delete Resource
+						{permanentDelete
+							? "Permanently Delete Resource"
+							: "Delete Resource"}
 					</DialogTitle>
 					<DialogDescription>
-						This action will deactivate the resource and make it unavailable for
-						new bookings.
+						{permanentDelete
+							? "This action will permanently delete the resource and all its data. This cannot be undone."
+							: "This action will deactivate the resource and make it unavailable for new bookings."}
 					</DialogDescription>
 				</DialogHeader>
 
@@ -140,21 +172,49 @@ export function DeleteResourceDialog({
 							</Alert>
 						)}
 
-					<Alert>
-						<AlertTriangle className="h-4 w-4" />
-						<AlertDescription>
-							<strong>Note:</strong> This will deactivate the resource rather
-							than permanently delete it. You can reactivate it later from the
-							resource edit dialog.
-						</AlertDescription>
-					</Alert>
+					{/* Deletion Type Selection */}
+					<div className="space-y-3 rounded-lg border p-4">
+						<div className="flex items-center space-x-2">
+							<Checkbox
+								id="permanent-delete"
+								checked={permanentDelete}
+								onCheckedChange={(checked) => setPermanentDelete(!!checked)}
+							/>
+							<label
+								htmlFor="permanent-delete"
+								className="font-medium text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+							>
+								Permanently delete this resource
+							</label>
+						</div>
+						{permanentDelete ? (
+							<Alert>
+								<AlertTriangle className="h-4 w-4" />
+								<AlertDescription>
+									<strong>Warning:</strong> This will permanently delete the
+									resource and all associated data including bookings, access
+									rules, and limits. This action cannot be undone.
+								</AlertDescription>
+							</Alert>
+						) : (
+							<Alert>
+								<AlertTriangle className="h-4 w-4" />
+								<AlertDescription>
+									<strong>Note:</strong> This will deactivate the resource
+									rather than permanently delete it. You can reactivate it later
+									from the resource edit dialog.
+								</AlertDescription>
+							</Alert>
+						)}
+					</div>
 
 					{/* Confirmation Input */}
 					<div className="space-y-2">
-						<label className="font-medium text-sm">
+						<label htmlFor="confirm-text" className="font-medium text-sm">
 							Type <strong>{resource.name}</strong> to confirm:
 						</label>
 						<input
+							id="confirm-text"
 							type="text"
 							value={confirmText}
 							onChange={(e) => setConfirmText(e.target.value)}
@@ -169,6 +229,7 @@ export function DeleteResourceDialog({
 						variant="outline"
 						onClick={() => {
 							setConfirmText("");
+							setPermanentDelete(false);
 							onOpenChange(false);
 						}}
 					>
@@ -177,11 +238,15 @@ export function DeleteResourceDialog({
 					<Button
 						variant="destructive"
 						onClick={handleDelete}
-						disabled={!isConfirmValid || updateResource.isPending}
+						disabled={!isConfirmValid || isLoading}
 					>
-						{updateResource.isPending
-							? "Deactivating..."
-							: "Deactivate Resource"}
+						{isLoading
+							? permanentDelete
+								? "Deleting..."
+								: "Deactivating..."
+							: permanentDelete
+								? "Permanently Delete"
+								: "Deactivate Resource"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>

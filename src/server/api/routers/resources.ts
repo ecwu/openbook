@@ -376,6 +376,32 @@ export const resourcesRouter = createTRPCRouter({
 			return updatedResource;
 		}),
 
+	// Delete resource permanently (admin only)
+	delete: protectedProcedure
+		.input(z.object({ id: z.string() }))
+		.mutation(async ({ ctx, input }) => {
+			// Check if user is admin
+			const currentUser = await ctx.db.query.users.findFirst({
+				where: eq(users.id, ctx.session.user.id),
+			});
+			if (currentUser?.role !== "admin") {
+				throw new Error("Unauthorized: Admin access required");
+			}
+
+			// Check if resource exists
+			const resource = await ctx.db.query.resources.findFirst({
+				where: eq(resources.id, input.id),
+			});
+			if (!resource) {
+				throw new Error("Resource not found");
+			}
+
+			// Delete the resource (cascading will handle related records)
+			await ctx.db.delete(resources).where(eq(resources.id, input.id));
+
+			return { success: true, message: "Resource deleted successfully" };
+		}),
+
 	// Get resource types (for filtering/creation)
 	getTypes: protectedProcedure.query(async ({ ctx }) => {
 		const types = await ctx.db
