@@ -28,11 +28,6 @@ export default async function Home() {
 				<div className="flex flex-1 flex-col items-center justify-center">
 					<div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
 						<div className="space-y-6 text-center">
-							<div className="flex justify-center">
-								<Badge variant="outline" className="px-3 py-1">
-									🎯 Now in Beta
-								</Badge>
-							</div>
 							<h1 className="font-extrabold text-4xl tracking-tight sm:text-6xl">
 								Welcome to <span className="text-primary">OpenBook</span>
 							</h1>
