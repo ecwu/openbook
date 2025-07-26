@@ -64,6 +64,25 @@ export const authConfig = {
 		async signIn({ user, account, profile }) {
 			if (account?.provider === "authentik" && profile) {
 				try {
+					// Check if this is the first user in the system
+					const allUsers = await db.query.users.findMany({
+						columns: { id: true },
+					});
+
+					// If this is the first user (only one user exists), grant admin role
+					if (allUsers.length === 1) {
+						// Update the user role to admin in the database
+						await db
+							.update(users)
+							.set({ role: "admin" })
+							.where(eq(users.id, user.id as string));
+						
+						// Update the user object for this session
+						user.role = "admin";
+						
+						console.log(`First user ${user.email} granted admin role`);
+					}
+
 					// Extract groups from Authentik profile
 					// Authentik typically provides groups in the profile.groups field or claims
 					const authentikGroups = (profile.groups as string[]) || [];
@@ -112,8 +131,8 @@ export const authConfig = {
 						}
 					}
 				} catch (error) {
-					console.error("Error processing Authentik groups:", error);
-					// Don't fail the sign-in if group processing fails
+					console.error("Error processing Authentik authentication:", error);
+					// Don't fail the sign-in if processing fails
 				}
 			}
 			return true;
