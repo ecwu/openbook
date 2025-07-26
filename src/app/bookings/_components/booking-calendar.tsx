@@ -433,6 +433,7 @@ export function BookingCalendar() {
             height="auto"
             slotMinTime="00:00:00"
             slotMaxTime="24:00:00"
+            slotDuration="01:00:00"
             allDaySlot={false}
             nowIndicator={true}
             eventTimeFormat={{

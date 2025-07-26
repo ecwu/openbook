@@ -21,9 +21,7 @@ pnpm check        # Run Biome linting and formatting
 ```
 
 ### Database Setup
-```bash
-./start-database.sh    # Start local PostgreSQL via Docker/Podman
-```
+SQLite database file will be created automatically when first accessed.
 
 ## Architecture Overview
 
@@ -31,7 +29,7 @@ pnpm check        # Run Biome linting and formatting
 
 ### Core Technology Stack
 - **Next.js 15** with App Router and React 19
-- **PostgreSQL** with **Drizzle ORM** for database operations
+- **SQLite** with **Drizzle ORM** for database operations
 - **tRPC 11** for type-safe API communication
 - **NextAuth 5** with Authentik SSO provider for authentication
 - **Tailwind CSS 4** with shadcn/ui components
@@ -91,7 +89,7 @@ Key architectural patterns:
 ### Environment Configuration
 
 Environment variables are validated via `src/env.js` using the T3 env pattern. Key variables include:
-- Database connection (PostgreSQL)
+- Database connection (SQLite)
 - NextAuth configuration (Authentik SSO)
 - Application URLs and secrets
 

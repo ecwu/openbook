@@ -15,7 +15,7 @@ export const env = createEnv({
 		AUTH_AUTHENTIK_ID: z.string().optional(),
 		AUTH_AUTHENTIK_SECRET: z.string().optional(),
 		AUTH_AUTHENTIK_ISSUER: z.string().optional(),
-		DATABASE_URL: z.string().url(),
+		DATABASE_URL: z.string(),
 		NODE_ENV: z
 			.enum(["development", "test", "production"])
 			.default("development"),
