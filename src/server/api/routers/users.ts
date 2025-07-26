@@ -318,14 +318,4 @@ export const usersRouter = createTRPCRouter({
 		};
 	}),
 
-	// Make current user admin (development only)
-	makeAdmin: protectedProcedure.mutation(async ({ ctx }) => {
-		const [updatedUser] = await ctx.db
-			.update(users)
-			.set({ role: "admin" })
-			.where(eq(users.id, ctx.session.user.id))
-			.returning();
-
-		return updatedUser;
-	}),
 });

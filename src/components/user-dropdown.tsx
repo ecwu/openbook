@@ -31,30 +31,6 @@ export function UserDropdown({ user }: UserDropdownProps) {
 	const { toast } = useToast();
 	const [isOpen, setIsOpen] = useState(false);
 
-	const makeAdminMutation = api.users.makeAdmin.useMutation({
-		onSuccess: () => {
-			toast({
-				title: "Success",
-				description:
-					"You are now an admin! Please refresh the page to see admin features.",
-			});
-			// Close dropdown
-			setIsOpen(false);
-			// Refresh the page to update the session
-			window.location.reload();
-		},
-		onError: (error) => {
-			toast({
-				title: "Error",
-				description: error.message,
-				variant: "destructive",
-			});
-		},
-	});
-
-	const handleMakeAdmin = () => {
-		makeAdminMutation.mutate();
-	};
 
 	const isAdmin = user.role === "admin";
 
@@ -107,19 +83,6 @@ export function UserDropdown({ user }: UserDropdownProps) {
 					<Link href="/settings">Settings</Link>
 				</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				{!isAdmin && (
-					<>
-						<DropdownMenuItem
-							onClick={handleMakeAdmin}
-							disabled={makeAdminMutation.isPending}
-							className="text-orange-600 focus:text-orange-600"
-						>
-							<Shield className="mr-2 h-4 w-4" />
-							{makeAdminMutation.isPending ? "Making Admin..." : "Make Admin"}
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-					</>
-				)}
 				<DropdownMenuItem asChild>
 					<Link href="/api/auth/signout">Sign Out</Link>
 				</DropdownMenuItem>
