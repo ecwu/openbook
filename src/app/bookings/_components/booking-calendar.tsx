@@ -16,6 +16,9 @@ import { api } from "@/trpc/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import FullCalendar from "@fullcalendar/react";
+import resourcePlugin from "@fullcalendar/resource";
+import resourceTimeGridPlugin from "@fullcalendar/resource-timegrid";
+import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { Calendar, Plus, RefreshCw } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
@@ -29,6 +32,7 @@ interface CalendarEvent {
 	start: Date;
 	end: Date;
 	color: string;
+	resourceId?: string;
 	extendedProps: {
 		description?: string | null;
 		status: string;
@@ -49,9 +53,18 @@ interface CalendarEvent {
 	};
 }
 
+interface CalendarResource {
+	id: string;
+	title: string;
+	extendedProps: {
+		type: string;
+		status: string;
+		isActive: boolean;
+	};
+}
+
 export function BookingCalendar() {
-	const [currentView, setCurrentView] = useState("timeGridWeek");
-	const [selectedResourceId, setSelectedResourceId] = useState<string>("all");
+	const [currentView, setCurrentView] = useState("resourceTimeGridThreeDay");
 	const [myBookingsOnly, setMyBookingsOnly] = useState(false);
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 	const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
@@ -97,7 +110,7 @@ export function BookingCalendar() {
 	} = api.bookings.getCalendarEvents.useQuery({
 		start: dateRange.start,
 		end: dateRange.end,
-		resourceId: selectedResourceId === "all" ? undefined : selectedResourceId,
+		resourceId: undefined, // Show all resources in vertical view
 		myBookingsOnly,
 	});
 
@@ -117,7 +130,7 @@ export function BookingCalendar() {
 		setSelectInfo(null);
 		setDateClickInfo({
 			date: clickedDate,
-			resourceId: selectedResourceId === "all" ? undefined : selectedResourceId,
+			resourceId: info.resource?.id,
 		});
 		setShowCreateDialog(true);
 	};
@@ -173,7 +186,7 @@ export function BookingCalendar() {
 		setSelectInfo({
 			start: startDate,
 			end: endDate,
-			resourceId: selectedResourceId === "all" ? undefined : selectedResourceId,
+			resourceId: info.resource?.id,
 		});
 		setShowCreateDialog(true);
 	};
@@ -184,9 +197,21 @@ export function BookingCalendar() {
 		title: event.title,
 		start: event.start,
 		end: event.end,
+		resourceId: event.extendedProps.resource.id,
 		backgroundColor: event.color,
 		borderColor: event.color,
 		extendedProps: event.extendedProps,
+	}));
+
+	// Transform resources for FullCalendar
+	const calendarResources: CalendarResource[] = resources.map((resource) => ({
+		id: resource.id,
+		title: `${resource.name} (${resource.type})`,
+		extendedProps: {
+			type: resource.type,
+			status: resource.status,
+			isActive: resource.isActive,
+		},
 	}));
 
 	return (
@@ -207,30 +232,30 @@ export function BookingCalendar() {
 							<div className="flex gap-1">
 								<Button
 									variant={
-										currentView === "dayGridMonth" ? "default" : "outline"
+										currentView === "resourceTimeGridThreeDay" ? "default" : "outline"
 									}
 									size="sm"
-									onClick={() => handleViewChange("dayGridMonth")}
+									onClick={() => handleViewChange("resourceTimeGridThreeDay")}
 								>
-									Month
+									3 Days
 								</Button>
 								<Button
 									variant={
-										currentView === "timeGridWeek" ? "default" : "outline"
+										currentView === "resourceTimeGridWeek" ? "default" : "outline"
 									}
 									size="sm"
-									onClick={() => handleViewChange("timeGridWeek")}
+									onClick={() => handleViewChange("resourceTimeGridWeek")}
 								>
 									Week
 								</Button>
 								<Button
 									variant={
-										currentView === "timeGridDay" ? "default" : "outline"
+										currentView === "resourceTimelineThreeDay" ? "default" : "outline"
 									}
 									size="sm"
-									onClick={() => handleViewChange("timeGridDay")}
+									onClick={() => handleViewChange("resourceTimelineThreeDay")}
 								>
-									Day
+									Timeline 3 Days
 								</Button>
 							</div>
 						</div>
@@ -244,57 +269,6 @@ export function BookingCalendar() {
 							/>
 						</div>
 
-						<div className="flex items-center gap-2">
-							<Label>Resource:</Label>
-							<Select
-								value={selectedResourceId}
-								onValueChange={setSelectedResourceId}
-							>
-								<SelectTrigger className="w-[200px]">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Resources</SelectItem>
-									{resources.map((resource) => (
-										<SelectItem
-											key={resource.id}
-											value={resource.id}
-											className={
-												!resource.isActive ? "text-muted-foreground" : ""
-											}
-										>
-											<div className="flex w-full items-center justify-between">
-												<span>
-													{resource.name} ({resource.type})
-												</span>
-												<div className="flex gap-1">
-													{!resource.isActive ? (
-														<Badge variant="secondary" className="text-xs">
-															DISABLED
-														</Badge>
-													) : resource.status !== "available" ? (
-														<Badge
-															variant={
-																resource.status === "offline"
-																	? "destructive"
-																	: "outline"
-															}
-															className="text-xs"
-														>
-															{resource.status.toUpperCase()}
-														</Badge>
-													) : (
-														<Badge variant="default" className="text-xs">
-															AVAILABLE
-														</Badge>
-													)}
-												</div>
-											</div>
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
 
 						<div className="ml-auto flex gap-2">
 							<Button
@@ -324,7 +298,7 @@ export function BookingCalendar() {
 					{/* Legend */}
 					<div className="flex flex-wrap items-center gap-4 text-sm">
 						<span className="text-muted-foreground">
-							Each resource has a unique color to help distinguish bookings
+							All resources are displayed vertically with bookings color-coded by resource
 						</span>
 					</div>
 				</CardContent>
@@ -335,7 +309,15 @@ export function BookingCalendar() {
 				<CardContent className="p-6">
 					<FullCalendar
 						ref={calendarRef}
-						plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+						plugins={[
+							dayGridPlugin,
+							timeGridPlugin,
+							interactionPlugin,
+							resourcePlugin,
+							resourceTimeGridPlugin,
+							resourceTimelinePlugin,
+						]}
+						schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
 						initialView={currentView}
 						headerToolbar={{
 							left: "prev,next today",
@@ -343,6 +325,7 @@ export function BookingCalendar() {
 							right: "", // We handle view switching with our custom buttons
 						}}
 						events={calendarEvents}
+						resources={calendarResources}
 						selectable={true}
 						selectMirror={true}
 						dayMaxEvents={true}
@@ -366,6 +349,27 @@ export function BookingCalendar() {
 							hour: "numeric",
 							minute: "2-digit",
 							meridiem: "short",
+						}}
+						resourceAreaHeaderContent="Resources"
+						resourceAreaWidth="200px"
+						datesAboveResources={true}
+						views={{
+							resourceTimeGridThreeDay: {
+								type: "resourceTimeGrid",
+								duration: { days: 3 },
+								buttonText: "3 Days",
+							},
+							resourceTimelineThreeDay: {
+								type: "resourceTimeline",
+								duration: { days: 3 },
+								slotDuration: "01:00:00",
+								slotLabelInterval: "02:00:00",
+								buttonText: "Timeline 3 Days",
+							},
+							resourceTimelineWeek: {
+								slotDuration: "01:00:00",
+								slotLabelInterval: "02:00:00",
+							},
 						}}
 					/>
 				</CardContent>
