@@ -17,7 +17,7 @@ export async function Navbar() {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-border/40 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
-      <div className="container mx-auto flex h-14 max-w-7xl items-center">
+      <div className="container mx-auto flex h-14 max-w-8xl items-center">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <span className="font-bold text-xl">OpenBook</span>
@@ -43,10 +43,10 @@ export async function Navbar() {
               </NavigationMenuItem>
               <NavigationMenuItem>
                 <NavigationMenuLink
-                  href="/groups"
+                  href="/events"
                   className="group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 font-medium text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50"
                 >
-                  Groups
+                  Events
                 </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>

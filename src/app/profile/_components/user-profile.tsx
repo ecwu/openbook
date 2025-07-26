@@ -207,29 +207,22 @@ export function UserProfile() {
 				</CardHeader>
 				<CardContent>
 					{user.groups && user.groups.length > 0 ? (
-						<div className="space-y-3">
+						<div className="flex flex-wrap gap-2">
 							{user.groups.map((group) => (
 								<div
 									key={group.id}
-									className="flex items-center justify-between rounded-md border p-3"
+									className="flex items-center gap-2 rounded-md border px-3 py-2"
+									title={group.description || undefined}
 								>
-									<div>
-										<div className="flex items-center gap-2">
-											<span className="font-medium">{group.name}</span>
-											<Badge
-												variant={
-													group.role === "manager" ? "default" : "secondary"
-												}
-											>
-												{group.role}
-											</Badge>
-										</div>
-										{group.description && (
-											<p className="text-muted-foreground text-sm">
-												{group.description}
-											</p>
-										)}
-									</div>
+									<span className="text-sm font-medium">{group.name}</span>
+									<Badge
+										variant={
+											group.role === "manager" ? "default" : "secondary"
+										}
+										className="text-xs"
+									>
+										{group.role}
+									</Badge>
 								</div>
 							))}
 						</div>

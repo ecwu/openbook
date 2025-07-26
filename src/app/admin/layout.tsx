@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Server, Settings, Shield, Users } from "lucide-react";
+import { Server, Settings, Shield, Users, Calendar } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -53,6 +53,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 							<Link href="/admin/users" className="flex items-center gap-2">
 								<Users className="h-4 w-4" />
 								Users
+							</Link>
+						</Button>
+						<Button asChild variant="ghost" className="justify-start">
+							<Link href="/admin/events" className="flex items-center gap-2">
+								<Calendar className="h-4 w-4" />
+								Events
 							</Link>
 						</Button>
 						<Button asChild variant="ghost" className="justify-start">

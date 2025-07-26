@@ -1,4 +1,5 @@
 import { bookingsRouter } from "@/server/api/routers/bookings";
+import { eventsRouter } from "@/server/api/routers/events";
 import { groupsRouter } from "@/server/api/routers/groups";
 import { limitsRouter } from "@/server/api/routers/limits";
 import { postRouter } from "@/server/api/routers/post";
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
 	resources: resourcesRouter,
 	bookings: bookingsRouter,
 	limits: limitsRouter,
+	events: eventsRouter,
 });
 
 // export type definition of API

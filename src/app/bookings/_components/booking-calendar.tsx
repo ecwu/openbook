@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { api } from "@/trpc/react";
@@ -95,7 +96,7 @@ export function BookingCalendar() {
   }, []);
 
   // Fetch resource types
-  const { data: resourceTypes = [] } =
+  const { data: resourceTypes = [], isLoading: isLoadingResourceTypes } =
     api.resources.getResourceTypes.useQuery();
 
   // Auto-select first resource type when available
@@ -119,7 +120,7 @@ export function BookingCalendar() {
   });
 
   // Fetch available resources for filter (filtered by type if selected)
-  const { data: resources = [] } = api.resources.list.useQuery({
+  const { data: resources = [], isLoading: isLoadingResources } = api.resources.list.useQuery({
     limit: 100,
     sortBy: "name",
     sortOrder: "asc",
@@ -275,25 +276,33 @@ export function BookingCalendar() {
   return (
     <div className="space-y-6">
       {/* Resource Type Tabs */}
-      {resourceTypes.length > 0 && (
-        <Tabs
-          value={selectedResourceType || resourceTypes[0]}
-          onValueChange={setSelectedResourceType}
-          className="w-full"
-        >
-          <TabsList
-            className="grid w-full"
-            style={{
-              gridTemplateColumns: `repeat(${resourceTypes.length}, minmax(0, 1fr))`,
-            }}
+      {isLoadingResourceTypes ? (
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+      ) : (
+        resourceTypes.length > 0 && (
+          <Tabs
+            value={selectedResourceType || resourceTypes[0]}
+            onValueChange={setSelectedResourceType}
+            className="w-full"
           >
-            {resourceTypes.map((type) => (
-              <TabsTrigger key={type} value={type} className="text-sm">
-                {type.toUpperCase()}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+            <TabsList
+              className="grid w-full"
+              style={{
+                gridTemplateColumns: `repeat(${resourceTypes.length}, minmax(0, 1fr))`,
+              }}
+            >
+              {resourceTypes.map((type) => (
+                <TabsTrigger key={type} value={type} className="text-sm">
+                  {type.toUpperCase()}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )
       )}
 
       {/* Controls */}
@@ -401,73 +410,118 @@ export function BookingCalendar() {
       {/* Calendar */}
       <Card>
         <CardContent className="p-6">
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[
-              dayGridPlugin,
-              timeGridPlugin,
-              interactionPlugin,
-              resourcePlugin,
-              resourceTimeGridPlugin,
-              resourceTimelinePlugin,
-            ]}
-            schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
-            initialView={currentView}
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "", // We handle view switching with our custom buttons
-            }}
-            events={calendarEvents}
-            resources={calendarResources}
-            selectable={true}
-            selectMirror={true}
-            dayMaxEvents={true}
-            weekends={true}
-            dateClick={handleDateClick}
-            eventClick={handleEventClick}
-            eventDrop={handleEventDrop}
-            eventResize={handleEventResize}
-            select={handleSelect}
-            datesSet={handleDatesSet}
-            height="auto"
-            slotMinTime="00:00:00"
-            slotMaxTime="24:00:00"
-            slotDuration="01:00:00"
-            allDaySlot={false}
-            nowIndicator={true}
-            eventTimeFormat={{
-              hour: "numeric",
-              minute: "2-digit",
-              meridiem: "short",
-            }}
-            slotLabelFormat={{
-              hour: "numeric",
-              minute: "2-digit",
-              meridiem: "short",
-            }}
-            resourceAreaHeaderContent="Resources"
-            resourceAreaWidth="200px"
-            datesAboveResources={true}
-            views={{
-              resourceTimeGridThreeDay: {
-                type: "resourceTimeGrid",
-                duration: { days: 3 },
-                buttonText: "3 Days",
-              },
-              resourceTimelineThreeDay: {
-                type: "resourceTimeline",
-                duration: { days: 3 },
-                slotDuration: "01:00:00",
-                slotLabelInterval: "02:00:00",
-                buttonText: "Timeline 3 Days",
-              },
-              resourceTimelineWeek: {
-                slotDuration: "01:00:00",
-                slotLabelInterval: "02:00:00",
-              },
-            }}
-          />
+          {isLoading || isLoadingResources ? (
+            <div className="space-y-4">
+              {/* Calendar header skeleton */}
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
+                <Skeleton className="h-8 w-32" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </div>
+              
+              {/* Calendar body skeleton */}
+              <div className="grid grid-cols-1 gap-4">
+                <div className="flex">
+                  {/* Resource column skeleton */}
+                  <div className="w-48 space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                  
+                  {/* Calendar grid skeleton */}
+                  <div className="flex-1 ml-4 space-y-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Skeleton className="h-64 w-full" />
+                      <Skeleton className="h-64 w-full" />
+                      <Skeleton className="h-64 w-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[
+                dayGridPlugin,
+                timeGridPlugin,
+                interactionPlugin,
+                resourcePlugin,
+                resourceTimeGridPlugin,
+                resourceTimelinePlugin,
+              ]}
+              schedulerLicenseKey="CC-Attribution-NonCommercial-NoDerivatives"
+              initialView={currentView}
+              headerToolbar={{
+                left: "prev,next today",
+                center: "title",
+                right: "", // We handle view switching with our custom buttons
+              }}
+              events={calendarEvents}
+              resources={calendarResources}
+              selectable={true}
+              selectMirror={true}
+              dayMaxEvents={true}
+              weekends={true}
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
+              eventDrop={handleEventDrop}
+              eventResize={handleEventResize}
+              select={handleSelect}
+              datesSet={handleDatesSet}
+              height="auto"
+              slotMinTime="00:00:00"
+              slotMaxTime="24:00:00"
+              slotDuration="01:00:00"
+              allDaySlot={false}
+              nowIndicator={true}
+              eventTimeFormat={{
+                hour: "numeric",
+                minute: "2-digit",
+                meridiem: "short",
+              }}
+              slotLabelFormat={{
+                hour: "numeric",
+                minute: "2-digit",
+                meridiem: "short",
+              }}
+              resourceAreaHeaderContent="Resources"
+              resourceAreaWidth="200px"
+              datesAboveResources={true}
+              views={{
+                resourceTimeGridThreeDay: {
+                  type: "resourceTimeGrid",
+                  duration: { days: 3 },
+                  buttonText: "3 Days",
+                },
+                resourceTimelineThreeDay: {
+                  type: "resourceTimeline",
+                  duration: { days: 3 },
+                  slotDuration: "01:00:00",
+                  slotLabelInterval: "02:00:00",
+                  buttonText: "Timeline 3 Days",
+                },
+                resourceTimelineWeek: {
+                  slotDuration: "01:00:00",
+                  slotLabelInterval: "02:00:00",
+                },
+              }}
+            />
+          )}
         </CardContent>
       </Card>
 

@@ -59,6 +59,8 @@ export const usersRelations = relations(users, ({ many }) => ({
 	userGroups: many(userGroups),
 	bookings: many(bookings),
 	resourceLimits: many(resourceLimits),
+	createdEvents: many(events),
+	eventParticipations: many(eventParticipants),
 }));
 
 export const accounts = createTable(
@@ -379,3 +381,74 @@ export const resourceLimitsRelations = relations(resourceLimits, ({ one }) => ({
 		references: [users.id],
 	}),
 }));
+
+// Events table for deadline tracking
+export const events = createTable(
+	"event",
+	(d) => ({
+		id: d
+			.text({ length: 255 })
+			.notNull()
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		name: d.text({ length: 255 }).notNull(),
+		description: d.text(),
+		deadline: d.integer({ mode: "timestamp" }).notNull(),
+		createdById: d
+			.text({ length: 255 })
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		createdAt: d
+			.integer({ mode: "timestamp" })
+			.default(sql`(unixepoch())`)
+			.notNull(),
+		updatedAt: d.integer({ mode: "timestamp" }).$onUpdate(() => new Date()),
+	}),
+	(t) => [
+		index("event_deadline_idx").on(t.deadline),
+		index("event_creator_idx").on(t.createdById),
+	],
+);
+
+// Event participants - simple join/leave tracking
+export const eventParticipants = createTable(
+	"event_participant",
+	(d) => ({
+		eventId: d
+			.text({ length: 255 })
+			.notNull()
+			.references(() => events.id, { onDelete: "cascade" }),
+		userId: d
+			.text({ length: 255 })
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		joinedAt: d
+			.integer({ mode: "timestamp" })
+			.default(sql`(unixepoch())`)
+			.notNull(),
+	}),
+	(t) => [primaryKey({ columns: [t.eventId, t.userId] })],
+);
+
+// Relations for events
+export const eventsRelations = relations(events, ({ one, many }) => ({
+	createdBy: one(users, {
+		fields: [events.createdById],
+		references: [users.id],
+	}),
+	participants: many(eventParticipants),
+}));
+
+export const eventParticipantsRelations = relations(
+	eventParticipants,
+	({ one }) => ({
+		event: one(events, {
+			fields: [eventParticipants.eventId],
+			references: [events.id],
+		}),
+		user: one(users, {
+			fields: [eventParticipants.userId],
+			references: [users.id],
+		}),
+	}),
+);

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LatestPost } from "@/app/_components/post";
+import { UpcomingEvents } from "@/app/_components/upcoming-events";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +23,9 @@ export default async function Home() {
 	if (session?.user) {
 		void api.post.getLatest.prefetch();
 	}
+
+	// Prefetch upcoming events for all users
+	void api.events.getUpcoming.prefetch();
 
 	return (
 		<HydrateClient>
@@ -94,6 +98,10 @@ export default async function Home() {
 									</CardDescription>
 								</CardContent>
 							</Card>
+						</div>
+
+						<div className="w-full max-w-5xl">
+							<UpcomingEvents isLoggedIn={!!session?.user} />
 						</div>
 
 						{session?.user ? (
