@@ -347,8 +347,8 @@ export function CreateBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="mx-auto max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="mx-auto max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Create New Booking</DialogTitle>
           <DialogDescription>
             Book a resource for a specific time period
@@ -358,8 +358,11 @@ export function CreateBookingDialog({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="max-w-xl space-y-6"
+            className="flex flex-col h-full"
           >
+            <div className="flex-1 overflow-y-auto space-y-6 max-w-xl pr-2"
+              style={{ maxHeight: 'calc(90vh - 180px)' }}
+            >
             {/* Resource Selection */}
             <div className="space-y-4">
               <h3 className="font-medium text-muted-foreground text-sm">
@@ -766,8 +769,9 @@ export function CreateBookingDialog({
                 </div>
               </div>
             )}
+            </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0 mt-4">
               <Button
                 type="button"
                 variant="outline"
