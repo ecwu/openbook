@@ -13,6 +13,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { auth } from "@/server/auth";
 import { HydrateClient, api } from "@/trpc/server";
+import { Calendar, Monitor, Users } from "lucide-react";
 
 export default async function Home() {
 	const hello = await api.post.hello({ text: "from tRPC" });
@@ -39,53 +40,57 @@ export default async function Home() {
 						</div>
 
 						<div className="grid w-full max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-							<Card className="relative overflow-hidden">
-								<CardHeader>
-									<div className="flex items-center justify-between">
+							<Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
+								<CardHeader className="pb-4">
+									<div className="flex items-center gap-3">
+										<div className="rounded-lg bg-primary/10 p-2">
+											<Calendar className="h-6 w-6 text-primary" />
+										</div>
 										<CardTitle className="text-xl">
-											Resource Management
+											Book Resources
 										</CardTitle>
-										<Badge variant="secondary">Core</Badge>
 									</div>
 								</CardHeader>
 								<CardContent>
 									<CardDescription className="text-base">
-										Track capacity, manage availability, and optimize
-										utilization of your computing infrastructure with real-time
-										monitoring.
+										Reserve GPUs, servers, and computing resources for your projects. 
+										Schedule time slots and manage your bookings with an intuitive calendar interface.
 									</CardDescription>
 								</CardContent>
 							</Card>
 
-							<Card className="relative overflow-hidden">
-								<CardHeader>
-									<div className="flex items-center justify-between">
-										<CardTitle className="text-xl">Smart Booking</CardTitle>
-										<Badge variant="secondary">Advanced</Badge>
+							<Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
+								<CardHeader className="pb-4">
+									<div className="flex items-center gap-3">
+										<div className="rounded-lg bg-primary/10 p-2">
+											<Monitor className="h-6 w-6 text-primary" />
+										</div>
+										<CardTitle className="text-xl">Browse Resources</CardTitle>
 									</div>
 								</CardHeader>
 								<CardContent>
 									<CardDescription className="text-base">
-										Advanced scheduling with conflict detection, capacity
-										limits, and automated approval workflows for seamless
-										reservations.
+										Explore available computing infrastructure, check capacity, 
+										and find the perfect resources for your research or development needs.
 									</CardDescription>
 								</CardContent>
 							</Card>
 
-							<Card className="relative overflow-hidden">
-								<CardHeader>
-									<div className="flex items-center justify-between">
+							<Card className="relative overflow-hidden hover:shadow-lg transition-shadow">
+								<CardHeader className="pb-4">
+									<div className="flex items-center gap-3">
+										<div className="rounded-lg bg-primary/10 p-2">
+											<Users className="h-6 w-6 text-primary" />
+										</div>
 										<CardTitle className="text-xl">
-											Team Collaboration
+											Manage Groups
 										</CardTitle>
-										<Badge variant="secondary">Enterprise</Badge>
 									</div>
 								</CardHeader>
 								<CardContent>
 									<CardDescription className="text-base">
-										Group-based access control with roles, permissions, and
-										multi-tenant resource sharing for organizations.
+										Collaborate with your team by creating groups, sharing resources, 
+										and managing access permissions for different projects and users.
 									</CardDescription>
 								</CardContent>
 							</Card>
