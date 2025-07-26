@@ -2,6 +2,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { groups, resourceLimits, userGroups, users } from "@/server/db/schema";
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { z } from "zod";
+import { consumeAdminSetupToken } from "@/server/admin-token";
 
 const userCreateSchema = z.object({
 	email: z.string().email(),
@@ -318,4 +319,28 @@ export const usersRouter = createTRPCRouter({
 		};
 	}),
 
+	// Make user admin with token
+	makeAdminWithToken: protectedProcedure
+		.input(z.object({ token: z.string() }))
+		.mutation(async ({ ctx, input }) => {
+			// Validate and consume the admin setup token
+			if (!consumeAdminSetupToken(input.token)) {
+				throw new Error("Invalid or expired admin setup token");
+			}
+
+			// Update the user role to admin in the database
+			const [updatedUser] = await ctx.db
+				.update(users)
+				.set({ role: "admin" })
+				.where(eq(users.id, ctx.session.user.id))
+				.returning();
+
+			if (!updatedUser) {
+				throw new Error("Failed to update user role");
+			}
+
+			console.log(`User ${ctx.session.user.email} (ID: ${ctx.session.user.id}) granted admin role via token`);
+			
+			return updatedUser;
+		}),
 });

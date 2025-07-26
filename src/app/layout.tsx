@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 
 import { Navbar } from "@/components/navbar";
+import { SessionProvider } from "@/components/session-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TRPCReactProvider } from "@/trpc/react";
@@ -26,11 +27,13 @@ export default function RootLayout({
 		<html lang="en" className={`${geist.variable}`} suppressHydrationWarning>
 			<body>
 				<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-					<TRPCReactProvider>
-						<Navbar />
-						{children}
-						<Toaster />
-					</TRPCReactProvider>
+					<SessionProvider>
+						<TRPCReactProvider>
+							<Navbar />
+							{children}
+							<Toaster />
+						</TRPCReactProvider>
+					</SessionProvider>
 				</ThemeProvider>
 			</body>
 		</html>
