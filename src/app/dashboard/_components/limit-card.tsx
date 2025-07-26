@@ -9,7 +9,7 @@ interface LimitCardProps {
 		id: string;
 		name: string;
 		description?: string | null;
-		limitType: "group" | "user" | "group_per_person";
+		limitType: "user";
 		resourceId?: string | null;
 		maxHoursPerDay?: number | null;
 		maxHoursPerWeek?: number | null;
@@ -59,10 +59,6 @@ export function LimitCard({ limit }: LimitCardProps) {
 		switch (limit.limitType) {
 			case "user":
 				return "bg-blue-100 text-blue-800";
-			case "group":
-				return "bg-green-100 text-green-800";
-			case "group_per_person":
-				return "bg-purple-100 text-purple-800";
 			default:
 				return "bg-gray-100 text-gray-800";
 		}

@@ -31,7 +31,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/trpc/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -39,7 +38,7 @@ import { z } from "zod";
 const limitFormSchema = z.object({
 	name: z.string().min(1, "Name is required").max(255),
 	description: z.string().optional(),
-	limitType: z.enum(["group", "user", "group_per_person"]),
+	limitType: z.enum(["user"]).default("user"),
 	targetId: z.string().min(1, "Target is required"),
 	resourceId: z.string().optional(),
 	maxHoursPerDay: z.number().int().min(0).optional(),
@@ -64,8 +63,6 @@ export function CreateLimitDialog({
 	onOpenChange,
 	onSuccess,
 }: CreateLimitDialogProps) {
-	const [limitType, setLimitType] = useState<string>("");
-
 	const form = useForm({
 		resolver: zodResolver(limitFormSchema),
 		defaultValues: {
@@ -80,16 +77,7 @@ export function CreateLimitDialog({
 	});
 
 	// Get users for user limits
-	const { data: users = [] } = api.users.list.useQuery(
-		{ limit: 100 },
-		{ enabled: limitType === "user" },
-	);
-
-	// Get groups for group limits
-	const { data: groups = [] } = api.groups.list.useQuery(
-		{ limit: 100 },
-		{ enabled: limitType === "group" || limitType === "group_per_person" },
-	);
+	const { data: users = [] } = api.users.list.useQuery({ limit: 100 });
 
 	// Get resources
 	const { data: resources = [] } = api.resources.list.useQuery({ limit: 100 });
@@ -123,95 +111,43 @@ export function CreateLimitDialog({
 		createLimitMutation.mutate(submitData);
 	};
 
-	// Watch limit type to update target options
-	const watchedLimitType = form.watch("limitType");
-	useEffect(() => {
-		setLimitType(watchedLimitType);
-		if (watchedLimitType !== limitType) {
-			form.setValue("targetId", "");
-		}
-	}, [watchedLimitType, form, limitType]);
-
 	const getTargetOptions = () => {
-		if (limitType === "user") {
-			return users.map((user) => ({
-				value: user.id,
-				label: user.name || user.email,
-				description: user.email,
-			}));
-		}
-		if (limitType === "group" || limitType === "group_per_person") {
-			return groups.map((group) => ({
-				value: group.id,
-				label: group.name,
-				description: group.description,
-			}));
-		}
-		return [];
+		return users.map((user) => ({
+			value: user.id,
+			label: user.name || user.email,
+			description: user.email,
+		}));
 	};
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-2xl">
 				<DialogHeader>
-					<DialogTitle>Create Resource Limit</DialogTitle>
+					<DialogTitle>Create User Resource Limit</DialogTitle>
 					<DialogDescription>
-						Create a new resource limit to control usage for users or groups.
+						Create a new resource limit to control usage for a specific user.
+						System defaults apply to all users automatically.
 					</DialogDescription>
 				</DialogHeader>
 
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						<div className="grid grid-cols-2 gap-4">
-							<FormField
-								control={form.control}
-								name="name"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Name</FormLabel>
-										<FormControl>
-											<Input placeholder="e.g., Daily GPU Limit" {...field} />
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-
-							<FormField
-								control={form.control}
-								name="limitType"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Limit Type</FormLabel>
-										<Select
-											onValueChange={field.onChange}
-											defaultValue={field.value}
-										>
-											<FormControl>
-												<SelectTrigger>
-													<SelectValue placeholder="Select limit type" />
-												</SelectTrigger>
-											</FormControl>
-											<SelectContent>
-												<SelectItem value="user">User Limit</SelectItem>
-												<SelectItem value="group">Group Limit</SelectItem>
-												<SelectItem value="group_per_person">
-													Group Per Person
-												</SelectItem>
-											</SelectContent>
-										</Select>
-										<FormDescription>
-											{limitType === "user" && "Apply limit to a specific user"}
-											{limitType === "group" &&
-												"Apply limit to entire group combined"}
-											{limitType === "group_per_person" &&
-												"Apply limit to each member of the group"}
-										</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
+						<FormField
+							control={form.control}
+							name="name"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Name</FormLabel>
+									<FormControl>
+										<Input
+											placeholder="e.g., Daily GPU Limit for John"
+											{...field}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
 
 						<FormField
 							control={form.control}
@@ -236,19 +172,11 @@ export function CreateLimitDialog({
 								name="targetId"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>
-											{limitType === "user"
-												? "Target User"
-												: limitType === "group"
-													? "Target Group"
-													: limitType === "group_per_person"
-														? "Target Group"
-														: "Target"}
-										</FormLabel>
+										<FormLabel>Target User</FormLabel>
 										<Select onValueChange={field.onChange} value={field.value}>
 											<FormControl>
 												<SelectTrigger>
-													<SelectValue placeholder="Select target" />
+													<SelectValue placeholder="Select user" />
 												</SelectTrigger>
 											</FormControl>
 											<SelectContent>

@@ -288,8 +288,8 @@ export const resourceLimits = createTable(
 			.$defaultFn(() => crypto.randomUUID()),
 		name: d.varchar({ length: 255 }).notNull(),
 		description: d.text(),
-		limitType: d.varchar({ length: 20 }).notNull(), // group, user, group_per_person
-		targetId: d.varchar({ length: 255 }).notNull(), // groupId or userId depending on limitType
+		limitType: d.varchar({ length: 20 }).notNull().default("user"), // only "user" type now
+		targetId: d.varchar({ length: 255 }).notNull(), // userId only now
 		resourceId: d
 			.varchar({ length: 255 })
 			.references(() => resources.id, { onDelete: "cascade" }), // null for global limits

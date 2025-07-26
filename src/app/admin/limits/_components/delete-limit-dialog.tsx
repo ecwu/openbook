@@ -17,7 +17,7 @@ interface Limit {
 	id: string;
 	name: string;
 	description?: string | null;
-	limitType: "group" | "user" | "group_per_person";
+	limitType: "user";
 	targetId: string;
 	resourceId?: string | null;
 	target?: {

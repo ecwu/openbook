@@ -19,6 +19,11 @@ export const env = createEnv({
 		NODE_ENV: z
 			.enum(["development", "test", "production"])
 			.default("development"),
+
+		// System-wide default resource limits (required)
+		DEFAULT_MAX_HOURS_PER_DAY: z.coerce.number().int().min(0).default(24),
+		DEFAULT_MAX_HOURS_PER_WEEK: z.coerce.number().int().min(0).default(40),
+		DEFAULT_MAX_HOURS_PER_MONTH: z.coerce.number().int().min(0).default(120),
 	},
 
 	/**
@@ -41,6 +46,9 @@ export const env = createEnv({
 		AUTH_AUTHENTIK_ISSUER: process.env.AUTH_AUTHENTIK_ISSUER,
 		DATABASE_URL: process.env.DATABASE_URL,
 		NODE_ENV: process.env.NODE_ENV,
+		DEFAULT_MAX_HOURS_PER_DAY: process.env.DEFAULT_MAX_HOURS_PER_DAY,
+		DEFAULT_MAX_HOURS_PER_WEEK: process.env.DEFAULT_MAX_HOURS_PER_WEEK,
+		DEFAULT_MAX_HOURS_PER_MONTH: process.env.DEFAULT_MAX_HOURS_PER_MONTH,
 	},
 	/**
 	 * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

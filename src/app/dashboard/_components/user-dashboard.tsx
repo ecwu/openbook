@@ -10,14 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/trpc/react";
-import {
-	Calendar,
-	Clock,
-	Settings,
-	TrendingUp,
-	User,
-	Users,
-} from "lucide-react";
+import { Calendar, Clock, Settings, TrendingUp, User } from "lucide-react";
 import { LimitCard } from "./limit-card";
 import { UsageChart } from "./usage-chart";
 import { UsagePeriodCard } from "./usage-period-card";
@@ -55,10 +48,8 @@ export function UserDashboard() {
 	}
 
 	const totalLimits = limitsData
-		? limitsData.userLimits.length +
-			limitsData.groupLimits.length +
-			limitsData.groupPerPersonLimits.length
-		: 0;
+		? limitsData.userLimits.length + 1 // +1 for system defaults
+		: 1; // system defaults always present
 
 	// Filter recent bookings to show only relevant statuses
 	const filteredBookings = recentBookings.filter((booking) =>
@@ -173,38 +164,17 @@ export function UserDashboard() {
 										</div>
 									)}
 
-									{/* Group limits */}
-									{limitsData.groupLimits.length > 0 && (
+									{/* System defaults */}
+									{limitsData.systemDefaults && (
 										<div>
 											<div className="mb-3 flex items-center gap-2">
-												<Users className="h-4 w-4 text-green-500" />
-												<h4 className="font-medium">Group Limits</h4>
+												<Settings className="h-4 w-4 text-blue-500" />
+												<h4 className="font-medium">System Default Limits</h4>
 											</div>
 											<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-												{limitsData.groupLimits.map((limit) => (
-													<LimitCard
-														key={limit.id}
-														limit={asLimitCardProps(limit)}
-													/>
-												))}
-											</div>
-										</div>
-									)}
-
-									{/* Group per-person limits */}
-									{limitsData.groupPerPersonLimits.length > 0 && (
-										<div>
-											<div className="mb-3 flex items-center gap-2">
-												<Settings className="h-4 w-4 text-purple-500" />
-												<h4 className="font-medium">Group Per-Person Limits</h4>
-											</div>
-											<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-												{limitsData.groupPerPersonLimits.map((limit) => (
-													<LimitCard
-														key={limit.id}
-														limit={asLimitCardProps(limit)}
-													/>
-												))}
+												<LimitCard
+													limit={asLimitCardProps(limitsData.systemDefaults)}
+												/>
 											</div>
 										</div>
 									)}

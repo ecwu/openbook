@@ -41,7 +41,6 @@ import {
 	Settings,
 	Trash2,
 	User,
-	Users,
 } from "lucide-react";
 import { useState } from "react";
 import { CreateLimitDialog } from "./create-limit-dialog";
@@ -52,7 +51,7 @@ interface Limit {
 	id: string;
 	name: string;
 	description?: string | null;
-	limitType: "group" | "user" | "group_per_person";
+	limitType: "user";
 	targetId: string;
 	resourceId?: string | null;
 	maxHoursPerDay?: number | null;
@@ -106,9 +105,7 @@ export function LimitManagementPanel() {
 		refetch,
 	} = api.limits.list.useQuery({
 		limitType:
-			limitTypeFilter === "all"
-				? undefined
-				: (limitTypeFilter as "group" | "user" | "group_per_person"),
+			limitTypeFilter === "all" ? undefined : (limitTypeFilter as "user"),
 		isActive:
 			isActiveFilter === "all" ? undefined : isActiveFilter === "active",
 		limit: 50,
@@ -122,12 +119,8 @@ export function LimitManagementPanel() {
 		switch (type) {
 			case "user":
 				return <User className="h-4 w-4" />;
-			case "group":
-				return <Users className="h-4 w-4" />;
-			case "group_per_person":
-				return <Settings className="h-4 w-4" />;
 			default:
-				return <Settings className="h-4 w-4" />;
+				return <User className="h-4 w-4" />;
 		}
 	};
 
@@ -135,10 +128,6 @@ export function LimitManagementPanel() {
 		switch (type) {
 			case "user":
 				return "bg-blue-500";
-			case "group":
-				return "bg-green-500";
-			case "group_per_person":
-				return "bg-purple-500";
 			default:
 				return "bg-gray-500";
 		}
@@ -177,8 +166,6 @@ export function LimitManagementPanel() {
 						<SelectContent>
 							<SelectItem value="all">All Types</SelectItem>
 							<SelectItem value="user">User Limits</SelectItem>
-							<SelectItem value="group">Group Limits</SelectItem>
-							<SelectItem value="group_per_person">Group Per Person</SelectItem>
 						</SelectContent>
 					</Select>
 					<Select value={isActiveFilter} onValueChange={setIsActiveFilter}>
@@ -226,12 +213,13 @@ export function LimitManagementPanel() {
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="font-medium text-sm">Group Limits</CardTitle>
+						<CardTitle className="font-medium text-sm">
+							System Defaults
+						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<div className="font-bold text-2xl text-green-600">
-							{limits.filter((l) => l.limitType === "group").length}
-						</div>
+						<div className="font-bold text-2xl text-green-600">1</div>
+						<p className="text-muted-foreground text-xs">Always Active</p>
 					</CardContent>
 				</Card>
 				<Card>
@@ -251,7 +239,8 @@ export function LimitManagementPanel() {
 				<CardHeader>
 					<CardTitle>Resource Limits</CardTitle>
 					<CardDescription>
-						Manage resource usage limits for users and groups
+						Manage user-specific resource limits. System defaults apply to all
+						users automatically.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>

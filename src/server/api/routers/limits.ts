@@ -1,21 +1,15 @@
+import { env } from "@/env";
 import { getUsagePeriodRange } from "@/lib/usage-utils";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import {
-	bookings,
-	groups,
-	resourceLimits,
-	resources,
-	userGroups,
-	users,
-} from "@/server/db/schema";
-import { and, asc, desc, eq, gte, lte, or, sql } from "drizzle-orm";
+import { bookings, resourceLimits, resources, users } from "@/server/db/schema";
+import { and, desc, eq, gte, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const limitCreateSchema = z.object({
 	name: z.string().min(1).max(255),
 	description: z.string().optional(),
-	limitType: z.enum(["group", "user", "group_per_person"]),
-	targetId: z.string(), // groupId or userId
+	limitType: z.enum(["user"]).default("user"), // only user limits now
+	targetId: z.string(), // userId only
 	resourceId: z.string().optional(), // null for global limits
 	maxHoursPerDay: z.number().int().min(0).optional(),
 	maxHoursPerWeek: z.number().int().min(0).optional(),
@@ -48,7 +42,7 @@ export const limitsRouter = createTRPCRouter({
 	list: protectedProcedure
 		.input(
 			z.object({
-				limitType: z.enum(["group", "user", "group_per_person"]).optional(),
+				limitType: z.enum(["user"]).optional(),
 				targetId: z.string().optional(),
 				resourceId: z.string().optional(),
 				isActive: z.boolean().optional(),
@@ -108,33 +102,17 @@ export const limitsRouter = createTRPCRouter({
 				},
 			});
 
-			// Enrich with target details (user or group info)
+			// Enrich with user details
 			const enrichedLimits = await Promise.all(
 				limits.map(async (limit) => {
-					let target = null;
-
-					if (limit.limitType === "user") {
-						target = await ctx.db.query.users.findFirst({
-							where: eq(users.id, limit.targetId),
-							columns: {
-								id: true,
-								name: true,
-								email: true,
-							},
-						});
-					} else if (
-						limit.limitType === "group" ||
-						limit.limitType === "group_per_person"
-					) {
-						target = await ctx.db.query.groups.findFirst({
-							where: eq(groups.id, limit.targetId),
-							columns: {
-								id: true,
-								name: true,
-								description: true,
-							},
-						});
-					}
+					const target = await ctx.db.query.users.findFirst({
+						where: eq(users.id, limit.targetId),
+						columns: {
+							id: true,
+							name: true,
+							email: true,
+						},
+					});
 
 					return {
 						...limit,
@@ -181,51 +159,38 @@ export const limitsRouter = createTRPCRouter({
 				},
 			});
 
-			// Get user's groups
-			const userGroupsList = await ctx.db.query.userGroups.findMany({
-				where: eq(userGroups.userId, targetUserId),
-			});
-			const groupIds = userGroupsList.map((ug) => ug.groupId);
+			// Create system default limits object
+			const systemDefaults = {
+				id: "system-default",
+				name: "System Default Limits",
+				description: "System-wide default limits for all users",
+				limitType: "user" as const,
+				targetId: targetUserId,
+				resourceId: null,
+				maxHoursPerDay: env.DEFAULT_MAX_HOURS_PER_DAY,
+				maxHoursPerWeek: env.DEFAULT_MAX_HOURS_PER_WEEK,
+				maxHoursPerMonth: env.DEFAULT_MAX_HOURS_PER_MONTH,
+				maxConcurrentBookings: null, // No concurrent booking limits
+				maxBookingsPerDay: null, // No daily booking count limits
+				allowedBookingTypes: null,
+				allowedTimeSlots: null,
+				priority: -1000, // Lowest priority - system defaults are fallback
+				isActive: true,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				createdById: "system",
+				resource: null,
+			};
 
-			// Get group limits
-			const groupLimits = await ctx.db.query.resourceLimits.findMany({
-				where: and(
-					eq(resourceLimits.limitType, "group"),
-					sql`${resourceLimits.targetId} IN (${groupIds.join(",")})`,
-					eq(resourceLimits.isActive, true),
-					...(input.resourceId
-						? [eq(resourceLimits.resourceId, input.resourceId)]
-						: []),
-				),
-				with: {
-					resource: true,
-				},
-			});
-
-			// Get group per-person limits
-			const groupPerPersonLimits = await ctx.db.query.resourceLimits.findMany({
-				where: and(
-					eq(resourceLimits.limitType, "group_per_person"),
-					sql`${resourceLimits.targetId} IN (${groupIds.join(",")})`,
-					eq(resourceLimits.isActive, true),
-					...(input.resourceId
-						? [eq(resourceLimits.resourceId, input.resourceId)]
-						: []),
-				),
-				with: {
-					resource: true,
-				},
-			});
+			const effectiveLimits = [
+				...userLimits,
+				systemDefaults, // Always include system defaults
+			].sort((a, b) => b.priority - a.priority); // Higher priority first
 
 			return {
 				userLimits,
-				groupLimits,
-				groupPerPersonLimits,
-				effectiveLimits: [
-					...userLimits,
-					...groupLimits,
-					...groupPerPersonLimits,
-				].sort((a, b) => b.priority - a.priority), // Higher priority first
+				systemDefaults,
+				effectiveLimits,
 			};
 		}),
 
@@ -241,24 +206,12 @@ export const limitsRouter = createTRPCRouter({
 				throw new Error("Unauthorized: Admin access required");
 			}
 
-			// Validate target exists
-			if (input.limitType === "user") {
-				const user = await ctx.db.query.users.findFirst({
-					where: eq(users.id, input.targetId),
-				});
-				if (!user) {
-					throw new Error("Target user not found");
-				}
-			} else if (
-				input.limitType === "group" ||
-				input.limitType === "group_per_person"
-			) {
-				const group = await ctx.db.query.groups.findFirst({
-					where: eq(groups.id, input.targetId),
-				});
-				if (!group) {
-					throw new Error("Target group not found");
-				}
+			// Validate target user exists
+			const user = await ctx.db.query.users.findFirst({
+				where: eq(users.id, input.targetId),
+			});
+			if (!user) {
+				throw new Error("Target user not found");
 			}
 
 			// Validate resource exists if specified
@@ -384,57 +337,32 @@ export const limitsRouter = createTRPCRouter({
 				},
 			});
 
-			// Get user's groups
-			const userGroupsList = await ctx.db.query.userGroups.findMany({
-				where: eq(userGroups.userId, targetUserId),
-			});
-			const groupIds = userGroupsList.map((ug) => ug.groupId);
+			// Create system default limits object
+			const systemDefaults = {
+				id: "system-default",
+				name: "System Default Limits",
+				description: "System-wide default limits for all users",
+				limitType: "user" as const,
+				targetId: targetUserId,
+				resourceId: null,
+				maxHoursPerDay: env.DEFAULT_MAX_HOURS_PER_DAY,
+				maxHoursPerWeek: env.DEFAULT_MAX_HOURS_PER_WEEK,
+				maxHoursPerMonth: env.DEFAULT_MAX_HOURS_PER_MONTH,
+				maxConcurrentBookings: null,
+				maxBookingsPerDay: null,
+				allowedBookingTypes: null,
+				allowedTimeSlots: null,
+				priority: -1000,
+				isActive: true,
+				createdAt: new Date(),
+				updatedAt: new Date(),
+				createdById: "system",
+				resource: null,
+			};
 
-			// Get group limits
-			let groupLimits: typeof userLimits = [];
-			let groupPerPersonLimits: typeof userLimits = [];
-
-			if (groupIds.length > 0) {
-				groupLimits = await ctx.db.query.resourceLimits.findMany({
-					where: and(
-						eq(resourceLimits.limitType, "group"),
-						sql`${resourceLimits.targetId} IN (${groupIds
-							.map(() => "?")
-							.join(",")})`,
-						eq(resourceLimits.isActive, true),
-						or(
-							eq(resourceLimits.resourceId, input.resourceId),
-							sql`${resourceLimits.resourceId} IS NULL`,
-						),
-					),
-					with: {
-						resource: true,
-					},
-				});
-
-				groupPerPersonLimits = await ctx.db.query.resourceLimits.findMany({
-					where: and(
-						eq(resourceLimits.limitType, "group_per_person"),
-						sql`${resourceLimits.targetId} IN (${groupIds
-							.map(() => "?")
-							.join(",")})`,
-						eq(resourceLimits.isActive, true),
-						or(
-							eq(resourceLimits.resourceId, input.resourceId),
-							sql`${resourceLimits.resourceId} IS NULL`,
-						),
-					),
-					with: {
-						resource: true,
-					},
-				});
-			}
-
-			const effectiveLimits = [
-				...userLimits,
-				...groupLimits,
-				...groupPerPersonLimits,
-			].sort((a, b) => b.priority - a.priority);
+			const effectiveLimits = [...userLimits, systemDefaults].sort(
+				(a, b) => b.priority - a.priority,
+			);
 
 			// Calculate booking duration in hours
 			const bookingDurationHours =

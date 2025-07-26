@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import {
 	bookings,
@@ -7,18 +8,7 @@ import {
 	userGroups,
 	users,
 } from "@/server/db/schema";
-import {
-	and,
-	asc,
-	between,
-	desc,
-	eq,
-	gte,
-	lte,
-	not,
-	or,
-	sql,
-} from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, not, or, sql } from "drizzle-orm";
 
 function getResourceColor(resourceId: string, resourceName: string): string {
 	// Generate a consistent color based on resource ID/name
@@ -379,53 +369,31 @@ export const bookingsRouter = createTRPCRouter({
 					),
 				});
 
-				// Get user's groups
-				const userGroupsList = await ctx.db.query.userGroups.findMany({
-					where: eq(userGroups.userId, ctx.session.user.id),
-				});
-				const groupIds = userGroupsList.map((ug) => ug.groupId);
+				// Create system default limits object
+				const systemDefaults = {
+					id: "system-default",
+					name: "System Default Limits",
+					description: "System-wide default limits for all users",
+					limitType: "user" as const,
+					targetId: ctx.session.user.id,
+					resourceId: null,
+					maxHoursPerDay: env.DEFAULT_MAX_HOURS_PER_DAY,
+					maxHoursPerWeek: env.DEFAULT_MAX_HOURS_PER_WEEK,
+					maxHoursPerMonth: env.DEFAULT_MAX_HOURS_PER_MONTH,
+					maxConcurrentBookings: null,
+					maxBookingsPerDay: null,
+					allowedBookingTypes: null,
+					allowedTimeSlots: null,
+					priority: -1000, // Lowest priority - system defaults are fallback
+					isActive: true,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+					createdById: "system",
+				};
 
-				// Get group and group per-person limits
-				let groupLimits: typeof userLimits = [];
-				let groupPerPersonLimits: typeof userLimits = [];
-
-				if (groupIds.length > 0) {
-					const groupLimitsQuery = ctx.db.query.resourceLimits.findMany({
-						where: and(
-							eq(resourceLimits.limitType, "group"),
-							sql`${resourceLimits.targetId} = ANY(ARRAY[${groupIds.map((id) => `'${id}'`).join(",")}])`,
-							eq(resourceLimits.isActive, true),
-							or(
-								eq(resourceLimits.resourceId, input.resourceId),
-								sql`${resourceLimits.resourceId} IS NULL`,
-							),
-						),
-					});
-
-					const groupPerPersonLimitsQuery =
-						ctx.db.query.resourceLimits.findMany({
-							where: and(
-								eq(resourceLimits.limitType, "group_per_person"),
-								sql`${resourceLimits.targetId} = ANY(ARRAY[${groupIds.map((id) => `'${id}'`).join(",")}])`,
-								eq(resourceLimits.isActive, true),
-								or(
-									eq(resourceLimits.resourceId, input.resourceId),
-									sql`${resourceLimits.resourceId} IS NULL`,
-								),
-							),
-						});
-
-					[groupLimits, groupPerPersonLimits] = await Promise.all([
-						groupLimitsQuery,
-						groupPerPersonLimitsQuery,
-					]);
-				}
-
-				const effectiveLimits = [
-					...userLimits,
-					...groupLimits,
-					...groupPerPersonLimits,
-				].sort((a, b) => b.priority - a.priority);
+				const effectiveLimits = [...userLimits, systemDefaults].sort(
+					(a, b) => b.priority - a.priority,
+				);
 
 				if (effectiveLimits.length > 0) {
 					// Calculate booking duration in hours
