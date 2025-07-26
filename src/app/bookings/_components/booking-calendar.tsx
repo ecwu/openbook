@@ -4,14 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { api } from "@/trpc/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -21,7 +15,7 @@ import resourceTimeGridPlugin from "@fullcalendar/resource-timegrid";
 import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { Calendar, Plus, RefreshCw } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { CreateBookingDialog } from "./create-booking-dialog";
 import { ViewBookingDialog } from "./view-booking-dialog";
@@ -100,6 +94,13 @@ export function BookingCalendar() {
 
 	// Fetch resource types
 	const { data: resourceTypes = [] } = api.resources.getResourceTypes.useQuery();
+
+	// Auto-select first resource type when available
+	useEffect(() => {
+		if (resourceTypes.length > 0 && !selectedResourceType) {
+			setSelectedResourceType(resourceTypes[0]);
+		}
+	}, [resourceTypes, selectedResourceType]);
 
 	// Fetch calendar events
 	const {
@@ -217,6 +218,23 @@ export function BookingCalendar() {
 
 	return (
 		<div className="space-y-6">
+			{/* Resource Type Tabs */}
+			{resourceTypes.length > 0 && (
+				<Tabs 
+					value={selectedResourceType || resourceTypes[0]} 
+					onValueChange={setSelectedResourceType}
+					className="w-full"
+				>
+					<TabsList className="grid w-full" style={{ gridTemplateColumns: `repeat(${resourceTypes.length}, minmax(0, 1fr))` }}>
+						{resourceTypes.map((type) => (
+							<TabsTrigger key={type} value={type} className="text-sm">
+								{type.toUpperCase()}
+							</TabsTrigger>
+						))}
+					</TabsList>
+				</Tabs>
+			)}
+
 			{/* Controls */}
 			<Card>
 				<CardHeader className="pb-3">
@@ -226,7 +244,7 @@ export function BookingCalendar() {
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					{/* View Controls */}
+					{/* View and Other Controls */}
 					<div className="flex flex-wrap items-center gap-4">
 						<div className="flex items-center gap-2">
 							<Label>View:</Label>
@@ -262,28 +280,6 @@ export function BookingCalendar() {
 						</div>
 
 						<div className="flex items-center gap-2">
-							<Label htmlFor="resource-type">Resource Type:</Label>
-							<Select
-								value={selectedResourceType || "all"}
-								onValueChange={(value) => 
-									setSelectedResourceType(value === "all" ? null : value)
-								}
-							>
-								<SelectTrigger className="w-[140px]">
-									<SelectValue placeholder="All Types" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Types</SelectItem>
-									{resourceTypes.map((type) => (
-										<SelectItem key={type} value={type}>
-											{type.toUpperCase()}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="flex items-center gap-2">
 							<Label htmlFor="my-bookings">My bookings only:</Label>
 							<Switch
 								id="my-bookings"
@@ -291,7 +287,6 @@ export function BookingCalendar() {
 								onCheckedChange={setMyBookingsOnly}
 							/>
 						</div>
-
 
 						<div className="ml-auto flex gap-2">
 							<Button
@@ -321,14 +316,11 @@ export function BookingCalendar() {
 					{/* Legend */}
 					<div className="flex flex-wrap items-center gap-4 text-sm">
 						<span className="text-muted-foreground">
-							{selectedResourceType 
-								? `Showing ${selectedResourceType.toUpperCase()} resources only. Bookings are color-coded by resource.`
-								: "Showing all resources. Select a resource type to filter. Bookings are color-coded by resource."
-							}
+							Showing {selectedResourceType ? selectedResourceType.toUpperCase() : 'all'} resources. Bookings are color-coded by resource.
 						</span>
 						{selectedResourceType && (
 							<Badge variant="secondary" className="text-xs">
-								Filter: {selectedResourceType.toUpperCase()}
+								Active: {selectedResourceType.toUpperCase()}
 							</Badge>
 						)}
 					</div>
