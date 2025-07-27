@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  app:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_CLIENTVAR: "clientvar"
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:./db.sqlite
+    volumes:
+      - ./db.sqlite:/app/db.sqlite
